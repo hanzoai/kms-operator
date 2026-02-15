@@ -3,7 +3,7 @@ package api
 import (
 	"time"
 
-	"github.com/luxfi/kms/k8-operator/packages/model"
+	"github.com/hanzoai/kms-operator/packages/model"
 )
 
 type GetEncryptedWorkspaceKeyRequest struct {

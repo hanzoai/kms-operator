@@ -6,8 +6,8 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/luxfi/kms/k8-operator/api/v1alpha1"
-	"github.com/luxfi/kms/k8-operator/packages/constants"
+	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/packages/constants"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"

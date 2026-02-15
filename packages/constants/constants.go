@@ -13,7 +13,7 @@ const KMS_TOKEN_SECRET_KEY_NAME = "kmsToken"
 const SECRET_VERSION_ANNOTATION = "secrets.lux.network/version" // used to set the version of secrets via Etag
 const OPERATOR_SETTINGS_CONFIGMAP_NAME = "kms-config"
 const OPERATOR_SETTINGS_CONFIGMAP_NAMESPACE = "kms-operator-system"
-const KMS_DOMAIN = "https://kms.lux.network/api"
+const KMS_DOMAIN = "https://kms.hanzo.ai/api"
 
 const KMS_PUSH_SECRET_FINALIZER_NAME = "pushsecret.secrets.lux.network/finalizer"
 const KMS_DYNAMIC_SECRET_FINALIZER_NAME = "dynamicsecret.secrets.lux.network/finalizer"

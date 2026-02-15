@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/luxfi/kms/k8-operator/packages/constants"
+	"github.com/hanzoai/kms-operator/packages/constants"
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

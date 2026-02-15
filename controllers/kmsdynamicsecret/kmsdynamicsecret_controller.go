@@ -16,11 +16,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/go-logr/logr"
-	secretsv1alpha1 "github.com/luxfi/kms/k8-operator/api/v1alpha1"
-	"github.com/luxfi/kms/k8-operator/packages/api"
-	"github.com/luxfi/kms/k8-operator/packages/constants"
-	controllerhelpers "github.com/luxfi/kms/k8-operator/packages/controllerhelpers"
-	"github.com/luxfi/kms/k8-operator/packages/util"
+	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/packages/api"
+	"github.com/hanzoai/kms-operator/packages/constants"
+	controllerhelpers "github.com/hanzoai/kms-operator/packages/controllerhelpers"
+	"github.com/hanzoai/kms-operator/packages/util"
 )
 
 // KMSDynamicSecretReconciler reconciles a KMSDynamicSecret object

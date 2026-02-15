@@ -1,4 +1,4 @@
-module github.com/luxfi/kms/k8-operator
+module github.com/hanzoai/kms-operator
 
 go 1.24.0
 

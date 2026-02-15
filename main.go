@@ -18,11 +18,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	secretsv1alpha1 "github.com/luxfi/kms/k8-operator/api/v1alpha1"
-	kmsDynamicSecretController "github.com/luxfi/kms/k8-operator/controllers/kmsdynamicsecret"
-	kmsPushSecretController "github.com/luxfi/kms/k8-operator/controllers/kmspushsecret"
-	kmsSecretController "github.com/luxfi/kms/k8-operator/controllers/kmssecret"
-	"github.com/luxfi/kms/k8-operator/packages/template"
+	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	kmsDynamicSecretController "github.com/hanzoai/kms-operator/controllers/kmsdynamicsecret"
+	kmsPushSecretController "github.com/hanzoai/kms-operator/controllers/kmspushsecret"
+	kmsSecretController "github.com/hanzoai/kms-operator/controllers/kmssecret"
+	"github.com/hanzoai/kms-operator/packages/template"
 	//+kubebuilder:scaffold:imports
 )
 

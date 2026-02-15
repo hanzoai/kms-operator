@@ -5,8 +5,8 @@
 domain: lux.network
 layout:
   - go.kubebuilder.io/v3
-projectName: k8-operator
-repo: github.com/luxfi/kms/k8-operator
+projectName: kms-operator
+repo: github.com/hanzoai/kms-operator
 resources:
   - api:
       crdVersion: v1
@@ -15,7 +15,7 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSSecret
-    path: github.com/luxfi/kms/k8-operator/api/v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1alpha1
     version: v1alpha1
   - api:
       crdVersion: v1
@@ -24,7 +24,7 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSPushSecretSecret
-    path: github.com/luxfi/kms/k8-operator/api/v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1alpha1
     version: v1alpha1
   - api:
       crdVersion: v1
@@ -33,6 +33,6 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSDynamicSecret
-    path: github.com/luxfi/kms/k8-operator/api/v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1alpha1
     version: v1alpha1
 version: "3"

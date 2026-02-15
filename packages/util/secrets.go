@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/luxfi/kms/k8-operator/api/v1alpha1"
-	"github.com/luxfi/kms/k8-operator/packages/api"
-	"github.com/luxfi/kms/k8-operator/packages/model"
+	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/packages/api"
+	"github.com/hanzoai/kms-operator/packages/model"
 	"github.com/go-resty/resty/v2"
 	kms "github.com/luxfi/kms-go"
 )

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/luxfi/kms/k8-operator/api/v1alpha1"
-	"github.com/luxfi/kms/k8-operator/packages/model"
+	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/packages/model"
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"

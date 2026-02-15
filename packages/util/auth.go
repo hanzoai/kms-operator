@@ -10,7 +10,7 @@ import (
 
 	authenticationv1 "k8s.io/api/authentication/v1"
 
-	"github.com/luxfi/kms/k8-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/api/v1alpha1"
 	"github.com/aws/smithy-go/ptr"
 	kmsSdk "github.com/luxfi/kms-go"
 	"sigs.k8s.io/controller-runtime/pkg/client"

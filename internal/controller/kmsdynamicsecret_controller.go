@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	secretsv1alpha1 "github.com/luxfi/kms/k8-operator/api/v1alpha1"
+	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
 )
 
 // KMSDynamicSecretReconciler reconciles a KMSDynamicSecret object

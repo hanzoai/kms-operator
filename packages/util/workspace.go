@@ -3,8 +3,8 @@ package util
 import (
 	"fmt"
 
-	"github.com/luxfi/kms/k8-operator/packages/api"
-	"github.com/luxfi/kms/k8-operator/packages/model"
+	"github.com/hanzoai/kms-operator/packages/api"
+	"github.com/hanzoai/kms-operator/packages/model"
 	"github.com/go-resty/resty/v2"
 )
 
