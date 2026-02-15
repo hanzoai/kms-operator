@@ -1,0 +1,166 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - clustergenerators
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmsdynamicsecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmsdynamicsecrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmsdynamicsecrets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmspushsecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmspushsecrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmspushsecrets/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmssecrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmssecrets/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - secrets.lux.network
+  resources:
+  - kmssecrets/status
+  verbs:
+  - get
+  - patch
+  - update
