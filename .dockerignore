@@ -2,3 +2,13 @@
 # Ignore build and test binaries.
 bin/
 testbin/
+.git
+.github
+.gitignore
+Dockerfile
+Dockerfile.cross
+*.md
+LICENSE
+Makefile
+hack/
+config/
