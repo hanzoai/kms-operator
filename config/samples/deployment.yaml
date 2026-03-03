@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:1.14.2
+        image: ghcr.io/hanzoai/static:latest
         envFrom:
         - secretRef:
             name: managed-secret
