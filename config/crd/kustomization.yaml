@@ -4,7 +4,6 @@
 resources:
   - bases/secrets.lux.network_kmssecrets.yaml
   - bases/secrets.lux.network_kmspushsecrets.yaml
-  - bases/secrets.lux.network_kmsdynamicsecrets.yaml
   - bases/secrets.lux.network_clustergenerators.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 

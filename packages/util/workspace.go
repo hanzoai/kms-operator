@@ -1,27 +1,10 @@
+// Package util/workspace.go was a thin wrapper over the legacy KMS
+// /v1/workspace/{id} endpoint. The canonical luxfi/kms surface has no
+// concept of a "workspace ID -> slug" lookup — orgs are addressed
+// directly by slug under /v1/kms/orgs/{org}/secrets/...
+//
+// The file is intentionally empty in the package-level public API; it
+// exists only to keep the package import path stable for
+// any downstream consumers in the operator that import it
+// transitively. Do not add new helpers here.
 package util
-
-import (
-	"fmt"
-
-	"github.com/hanzoai/kms-operator/packages/api"
-	"github.com/hanzoai/kms-operator/packages/model"
-	"github.com/go-resty/resty/v2"
-)
-
-func GetProjectByID(accessToken string, projectId string) (model.Project, error) {
-
-	httpClient := resty.New()
-	httpClient.
-		SetAuthScheme("Bearer").
-		SetAuthToken(accessToken).
-		SetHeader("Accept", "application/json")
-
-	projectDetails, err := api.CallGetProjectByID(httpClient, api.GetProjectByIDRequest{
-		ProjectID: projectId,
-	})
-	if err != nil {
-		return model.Project{}, fmt.Errorf("unable to get project by slug. [err=%v]", err)
-	}
-
-	return projectDetails.Project, nil
-}

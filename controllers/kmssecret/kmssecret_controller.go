@@ -136,9 +136,11 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if kmsSecretCRD.Spec.HostAPI == "" {
-		api.API_HOST_URL = kmsConfig["hostAPI"]
+		if h := kmsConfig["hostAPI"]; h != "" {
+			api.API_HOST_URL = h
+		}
 	} else {
-		api.API_HOST_URL = util.AppendAPIEndpoint(kmsSecretCRD.Spec.HostAPI)
+		api.API_HOST_URL = kmsSecretCRD.Spec.HostAPI
 	}
 
 	if kmsSecretCRD.Spec.TLS.CaRef.SecretName != "" {

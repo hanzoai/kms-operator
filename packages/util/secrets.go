@@ -1,186 +1,80 @@
+// Package util/secrets.go: read-side helpers that turn a successful
+// auth + scope into a slice of plaintext key/value pairs.
+//
+// The canonical luxfi/kms surface has no list endpoint — every value
+// MUST be addressed by exact name. The caller therefore has to
+// enumerate the expected keys on the CR via secretsScope.keys, and
+// this helper fans out one GET per name. NotFound is treated as
+// fatal: empty-fetch fail-closed, the controller refuses to project
+// an empty Secret.
 package util
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/hanzoai/kms-operator/api/v1alpha1"
-	"github.com/hanzoai/kms-operator/packages/api"
+	"github.com/hanzoai/kms-operator/packages/kmsapi"
 	"github.com/hanzoai/kms-operator/packages/model"
-	"github.com/go-resty/resty/v2"
-	kms "github.com/luxfi/kms-go"
 )
 
-type DecodedSymmetricEncryptionDetails = struct {
-	Cipher []byte
-	IV     []byte
-	Tag    []byte
-	Key    []byte
-}
+// GetPlainTextSecretsViaMachineIdentity fetches every key listed in
+// secretsScope.keys from the canonical /v1/kms/orgs/{org}/secrets/...
+// surface and returns them as a flat slice for the projection layer.
+//
+// Validation:
+//   - secretsScope.keys MUST be non-empty (no list endpoint exists).
+//   - Per-input bounds enforced via kmsapi.validateScope.
+//   - Each value is scanned for control bytes; NUL or C0 fails the
+//     entire reconcile rather than truncate downstream.
+func GetPlainTextSecretsViaMachineIdentity(
+	ctx context.Context,
+	kmsClient *kmsapi.Client,
+	host string,
+	bearerToken string,
+	scope v1alpha1.MachineIdentityScopeInWorkspace,
+) ([]model.SingleEnvironmentVariable, error) {
 
-func VerifyServiceToken(serviceToken string) (string, error) {
-	serviceTokenParts := strings.SplitN(serviceToken, ".", 4)
-	if len(serviceTokenParts) < 4 {
-		return "", fmt.Errorf("invalid service token entered. Please double check your service token and try again")
+	if kmsClient == nil {
+		return nil, errors.New("GetPlainTextSecretsViaMachineIdentity: kms client is nil")
+	}
+	if bearerToken == "" {
+		return nil, errors.New("GetPlainTextSecretsViaMachineIdentity: empty bearer token")
+	}
+	if scope.ProjectSlug == "" {
+		return nil, errors.New("secretsScope.projectSlug is required")
+	}
+	if scope.EnvSlug == "" {
+		return nil, errors.New("secretsScope.envSlug is required")
+	}
+	if len(scope.Keys) == 0 {
+		return nil, errors.New(
+			"secretsScope.keys is required (luxfi/kms has no list endpoint — enumerate explicitly)",
+		)
+	}
+	if len(scope.Keys) > kmsapi.MaxKeysPerCR {
+		return nil, fmt.Errorf("secretsScope.keys exceeds %d entries", kmsapi.MaxKeysPerCR)
 	}
 
-	serviceToken = fmt.Sprintf("%v.%v.%v", serviceTokenParts[0], serviceTokenParts[1], serviceTokenParts[2])
-	return serviceToken, nil
-}
+	scopePath := kmsapi.NormaliseScopePath(scope.SecretsPath)
 
-func GetServiceTokenDetails(kmsToken string) (api.GetServiceTokenDetailsResponse, error) {
-	serviceTokenParts := strings.SplitN(kmsToken, ".", 4)
-	if len(serviceTokenParts) < 4 {
-		return api.GetServiceTokenDetailsResponse{}, fmt.Errorf("invalid service token entered. Please double check your service token and try again")
-	}
-
-	serviceToken := fmt.Sprintf("%v.%v.%v", serviceTokenParts[0], serviceTokenParts[1], serviceTokenParts[2])
-
-	httpClient := resty.New()
-	httpClient.SetAuthToken(serviceToken).
-		SetHeader("Accept", "application/json")
-
-	serviceTokenDetails, err := api.CallGetServiceTokenDetailsV2(httpClient)
-	if err != nil {
-		return api.GetServiceTokenDetailsResponse{}, fmt.Errorf("unable to get service token details. [err=%v]", err)
-	}
-
-	return serviceTokenDetails, nil
-}
-
-func GetPlainTextSecretsViaMachineIdentity(kmsClient kms.KMSClientInterface, secretScope v1alpha1.MachineIdentityScopeInWorkspace) ([]model.SingleEnvironmentVariable, error) {
-
-	secrets, err := kmsClient.Secrets().List(kms.ListSecretsOptions{
-		ProjectSlug:            secretScope.ProjectSlug,
-		Environment:            secretScope.EnvSlug,
-		Recursive:              secretScope.Recursive,
-		SecretPath:             secretScope.SecretsPath,
-		IncludeImports:         true,
-		ExpandSecretReferences: true,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("unable to get secrets. [err=%v]", err)
-	}
-
-	var environmentVariables []model.SingleEnvironmentVariable
-
-	for _, secret := range secrets {
-
-		environmentVariables = append(environmentVariables, model.SingleEnvironmentVariable{
-			Key:        secret.SecretKey,
-			Value:      secret.SecretValue,
-			Type:       secret.Type,
-			ID:         secret.ID,
-			SecretPath: secret.SecretPath,
-		})
-	}
-
-	return environmentVariables, nil
-}
-
-func GetPlainTextSecretsViaServiceToken(kmsClient kms.KMSClientInterface, fullServiceToken string, envSlug string, secretPath string, recursive bool) ([]model.SingleEnvironmentVariable, error) {
-	serviceTokenParts := strings.SplitN(fullServiceToken, ".", 4)
-	if len(serviceTokenParts) < 4 {
-		return nil, fmt.Errorf("invalid service token entered. Please double check your service token and try again")
-	}
-
-	serviceToken := fmt.Sprintf("%v.%v.%v", serviceTokenParts[0], serviceTokenParts[1], serviceTokenParts[2])
-
-	httpClient := resty.New()
-
-	httpClient.SetAuthToken(serviceToken).
-		SetHeader("Accept", "application/json")
-
-	serviceTokenDetails, err := api.CallGetServiceTokenDetailsV2(httpClient)
-	if err != nil {
-		return nil, fmt.Errorf("unable to get service token details. [err=%v]", err)
-	}
-
-	secrets, err := kmsClient.Secrets().List(kms.ListSecretsOptions{
-		ProjectID:              serviceTokenDetails.Workspace,
-		Environment:            envSlug,
-		Recursive:              recursive,
-		SecretPath:             secretPath,
-		IncludeImports:         true,
-		ExpandSecretReferences: true,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	var environmentVariables []model.SingleEnvironmentVariable
-
-	for _, secret := range secrets {
-
-		environmentVariables = append(environmentVariables, model.SingleEnvironmentVariable{
-			Key:        secret.SecretKey,
-			Value:      secret.SecretValue,
-			Type:       secret.Type,
-			ID:         secret.ID,
-			SecretPath: secret.SecretPath,
-		})
-	}
-
-	return environmentVariables, nil
-
-}
-
-// Fetches plaintext secrets from an API endpoint using a service account.
-// The function fetches the service account details and keys, decrypts the workspace key, fetches the encrypted secrets for the specified project and environment, and decrypts the secrets using the decrypted workspace key.
-// Returns the plaintext secrets, encrypted secrets response, and any errors that occurred during the process.
-func GetPlainTextSecretsViaServiceAccount(kmsClient kms.KMSClientInterface, serviceAccountCreds model.ServiceAccountDetails, projectId string, environmentName string) ([]model.SingleEnvironmentVariable, error) {
-	httpClient := resty.New()
-	httpClient.SetAuthToken(serviceAccountCreds.AccessKey).
-		SetHeader("Accept", "application/json")
-
-	serviceAccountDetails, err := api.CallGetServiceTokenAccountDetailsV2(httpClient)
-	if err != nil {
-		return nil, fmt.Errorf("GetPlainTextSecretsViaServiceAccount: unable to get service account details. [err=%v]", err)
-	}
-
-	serviceAccountKeys, err := api.CallGetServiceAccountKeysV2(httpClient, api.GetServiceAccountKeysRequest{ServiceAccountId: serviceAccountDetails.ServiceAccount.ID})
-	if err != nil {
-		return nil, fmt.Errorf("GetPlainTextSecretsViaServiceAccount: unable to get service account key details. [err=%v]", err)
-	}
-
-	// find key for requested project
-	var workspaceServiceAccountKey api.ServiceAccountKey
-	for _, serviceAccountKey := range serviceAccountKeys.ServiceAccountKeys {
-		if serviceAccountKey.Workspace == projectId {
-			workspaceServiceAccountKey = serviceAccountKey
+	out := make([]model.SingleEnvironmentVariable, 0, len(scope.Keys))
+	for _, key := range scope.Keys {
+		if key == "" {
+			return nil, errors.New("secretsScope.keys contains an empty entry")
 		}
-	}
-
-	if workspaceServiceAccountKey.ID == "" || workspaceServiceAccountKey.EncryptedKey == "" || workspaceServiceAccountKey.Nonce == "" || serviceAccountCreds.PublicKey == "" || serviceAccountCreds.PrivateKey == "" {
-		return nil, fmt.Errorf("unable to find key for [projectId=%s] [err=%v]. Ensure that the given service account has access to given projectId", projectId, err)
-	}
-
-	secrets, err := kmsClient.Secrets().List(kms.ListSecretsOptions{
-		ProjectID:              projectId,
-		Environment:            environmentName,
-		Recursive:              false,
-		SecretPath:             "/",
-		IncludeImports:         true,
-		ExpandSecretReferences: true,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	var environmentVariables []model.SingleEnvironmentVariable
-
-	for _, secret := range secrets {
-		environmentVariables = append(environmentVariables, model.SingleEnvironmentVariable{
-			Key:        secret.SecretKey,
-			Value:      secret.SecretValue,
-			Type:       secret.Type,
-			ID:         secret.ID,
-			SecretPath: secret.SecretPath,
+		resp, err := kmsClient.GetSecret(ctx, host, bearerToken, scope.ProjectSlug, scope.EnvSlug, scopePath, key)
+		if err != nil {
+			return nil, fmt.Errorf("fetch secret %q: %w", key, err)
+		}
+		out = append(out, model.SingleEnvironmentVariable{
+			Key:        key,
+			Value:      resp.Value,
+			Type:       "shared",
+			ID:         "", // canonical surface has no separate ID
+			SecretPath: scope.SecretsPath,
 		})
 	}
-
-	return environmentVariables, nil
+	return out, nil
 }

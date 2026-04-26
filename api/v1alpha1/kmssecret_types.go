@@ -114,14 +114,24 @@ type SecretScopeInWorkspace struct {
 }
 
 type MachineIdentityScopeInWorkspace struct {
+	// SecretsPath is the path under which the listed Keys live. Empty
+	// path means the org root. Leading and trailing "/" are stripped.
 	// +kubebuilder:validation:Required
 	SecretsPath string `json:"secretsPath"`
+	// EnvSlug is the environment scope (for example "dev", "mainnet").
 	// +kubebuilder:validation:Required
 	EnvSlug string `json:"envSlug"`
+	// ProjectSlug names the org under the canonical luxfi/kms surface
+	// — secrets are addressed as /v1/kms/orgs/{projectSlug}/secrets/...
 	// +kubebuilder:validation:Required
 	ProjectSlug string `json:"projectSlug"`
-	// +kubebuilder:validation:Optional
-	Recursive bool `json:"recursive"`
+	// Keys enumerates the secret names to fetch from the KMS. The
+	// canonical surface has no list endpoint; every value MUST be
+	// addressed by exact name. Bounded ≤ 128 entries / CR.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=128
+	Keys []string `json:"keys"`
 }
 
 // KMSSecretSpec defines the desired state of KMSSecret
