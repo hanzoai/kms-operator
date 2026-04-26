@@ -3,10 +3,12 @@ package util
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 )
 
+// ConvertIntervalToDuration parses a string like "10s", "5m", "1h" into
+// a time.Duration. Used for the resyncInterval field on
+// KMSPushSecret.Spec.
 func ConvertIntervalToDuration(resyncInterval *string) (time.Duration, error) {
 
 	if resyncInterval == nil || *resyncInterval == "" {
@@ -43,14 +45,4 @@ func ConvertIntervalToDuration(resyncInterval *string) (time.Duration, error) {
 	default:
 		return 0, fmt.Errorf("invalid time unit")
 	}
-}
-
-func AppendAPIEndpoint(address string) string {
-	if strings.HasSuffix(address, "/api") {
-		return address
-	}
-	if address[len(address)-1] == '/' {
-		return address + "api"
-	}
-	return address + "/api"
 }

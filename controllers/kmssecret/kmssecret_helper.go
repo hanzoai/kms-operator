@@ -1,3 +1,20 @@
+// Package controllers/kmssecret_helper.go: read-side reconciler.
+//
+// The reconciler:
+//
+//  1. Loads (or reuses) a kmsapi.Client per CR UID.
+//  2. Resolves universalAuth credentials (the only supported strategy) and
+//     mints a bearer token via cached login.
+//  3. Fetches every key listed in secretsScope.keys via single-secret GETs.
+//  4. Empty-fetch fail-closed: refuses to project an empty Secret.
+//  5. Applies the templating engine and writes / updates the managed
+//     Kubernetes Secret(s) and ConfigMap(s).
+//
+// Removed (forward break):
+//   - service-token / service-account auth (no canonical surface).
+//   - kubernetes/AWS IAM/Azure/GCP machine-identity auth (no canonical
+//     surface — restore only when kmsd grows the routes).
+//   - github.com/luxfi/kms-go SDK dep.
 package controllers
 
 import (
@@ -8,109 +25,53 @@ import (
 	"strings"
 	tpl "text/template"
 
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/hanzoai/kms-operator/api/v1alpha1"
 	"github.com/hanzoai/kms-operator/packages/api"
 	"github.com/hanzoai/kms-operator/packages/constants"
 	"github.com/hanzoai/kms-operator/packages/crypto"
+	"github.com/hanzoai/kms-operator/packages/kmsapi"
 	"github.com/hanzoai/kms-operator/packages/model"
 	"github.com/hanzoai/kms-operator/packages/template"
 	"github.com/hanzoai/kms-operator/packages/util"
-	"github.com/go-logr/logr"
 
-	"k8s.io/apimachinery/pkg/types"
-
-	kmsSdk "github.com/luxfi/kms-go"
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func (r *KMSSecretReconciler) handleAuthentication(ctx context.Context, kmsSecret v1alpha1.KMSSecret, kmsClient kmsSdk.KMSClientInterface) (util.AuthenticationDetails, error) {
+// handleAuthentication resolves the universalAuth credentialsRef on the CR
+// and returns a fresh bearer token bound to the configured host.
+func (r *KMSSecretReconciler) handleAuthentication(
+	ctx context.Context,
+	kmsSecret v1alpha1.KMSSecret,
+	host string,
+	kmsClient *kmsapi.Client,
+) (util.AuthenticationDetails, error) {
 
-	// ? Legacy support, service token auth
-	kmsToken, err := r.getKMSTokenFromKubeSecret(ctx, kmsSecret)
-	if err != nil {
-		return util.AuthenticationDetails{}, fmt.Errorf("ReconcileKMSSecret: unable to get service token from kube secret [err=%s]", err)
+	authDetails, err := util.HandleUniversalAuth(ctx, r.Client, util.SecretAuthInput{
+		Secret: kmsSecret,
+		Type:   util.SecretCrd.KMS_SECRET,
+	}, host, kmsClient)
+
+	if err == nil {
+		return authDetails, nil
 	}
-	if kmsToken != "" {
-		kmsClient.Auth().SetAccessToken(kmsToken)
-		return util.AuthenticationDetails{AuthStrategy: util.AuthStrategy.SERVICE_TOKEN}, nil
+	if errors.Is(err, util.ErrAuthNotApplicable) {
+		return util.AuthenticationDetails{}, errors.New(
+			"no authentication method provided — KMSSecret.spec.authentication.universalAuth.credentialsRef is required",
+		)
 	}
-
-	// ? Legacy support, service account auth
-	serviceAccountCreds, err := r.getKMSServiceAccountCredentialsFromKubeSecret(ctx, kmsSecret)
-	if err != nil {
-		return util.AuthenticationDetails{}, fmt.Errorf("ReconcileKMSSecret: unable to get service account creds from kube secret [err=%s]", err)
-	}
-
-	if serviceAccountCreds.AccessKey != "" || serviceAccountCreds.PrivateKey != "" || serviceAccountCreds.PublicKey != "" {
-		kmsClient.Auth().SetAccessToken(serviceAccountCreds.AccessKey)
-		return util.AuthenticationDetails{AuthStrategy: util.AuthStrategy.SERVICE_ACCOUNT}, nil
-	}
-
-	authStrategies := map[util.AuthStrategyType]func(ctx context.Context, reconcilerClient client.Client, secretCrd util.SecretAuthInput, kmsClient kmsSdk.KMSClientInterface) (util.AuthenticationDetails, error){
-		util.AuthStrategy.UNIVERSAL_MACHINE_IDENTITY:    util.HandleUniversalAuth,
-		util.AuthStrategy.KUBERNETES_MACHINE_IDENTITY:   util.HandleKubernetesAuth,
-		util.AuthStrategy.AWS_IAM_MACHINE_IDENTITY:      util.HandleAwsIamAuth,
-		util.AuthStrategy.AZURE_MACHINE_IDENTITY:        util.HandleAzureAuth,
-		util.AuthStrategy.GCP_ID_TOKEN_MACHINE_IDENTITY: util.HandleGcpIdTokenAuth,
-		util.AuthStrategy.GCP_IAM_MACHINE_IDENTITY:      util.HandleGcpIamAuth,
-	}
-
-	for authStrategy, authHandler := range authStrategies {
-		authDetails, err := authHandler(ctx, r.Client, util.SecretAuthInput{
-			Secret: kmsSecret,
-			Type:   util.SecretCrd.KMS_SECRET,
-		}, kmsClient)
-
-		if err == nil {
-			return authDetails, nil
-		}
-
-		if !errors.Is(err, util.ErrAuthNotApplicable) {
-			return util.AuthenticationDetails{}, fmt.Errorf("authentication failed for strategy [%s] [err=%w]", authStrategy, err)
-		}
-	}
-
-	return util.AuthenticationDetails{}, fmt.Errorf("no authentication method provided")
-
+	return util.AuthenticationDetails{}, err
 }
 
-func (r *KMSSecretReconciler) getKMSTokenFromKubeSecret(ctx context.Context, kmsSecret v1alpha1.KMSSecret) (string, error) {
-	// default to new secret ref structure
-	secretName := kmsSecret.Spec.Authentication.ServiceToken.ServiceTokenSecretReference.SecretName
-	secretNamespace := kmsSecret.Spec.Authentication.ServiceToken.ServiceTokenSecretReference.SecretNamespace
-	// fall back to previous secret ref
-	if secretName == "" {
-		secretName = kmsSecret.Spec.TokenSecretReference.SecretName
-	}
-
-	if secretNamespace == "" {
-		secretNamespace = kmsSecret.Spec.TokenSecretReference.SecretNamespace
-	}
-
-	tokenSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
-		Namespace: secretNamespace,
-		Name:      secretName,
-	})
-
-	if k8Errors.IsNotFound(err) {
-		return "", nil
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("failed to read KMS token secret from secret named [%s] in namespace [%s]: with error [%w]", kmsSecret.Spec.TokenSecretReference.SecretName, kmsSecret.Spec.TokenSecretReference.SecretNamespace, err)
-	}
-
-	kmsServiceToken := tokenSecret.Data[constants.KMS_TOKEN_SECRET_KEY_NAME]
-
-	return strings.Replace(string(kmsServiceToken), " ", "", -1), nil
-}
-
-func (r *KMSSecretReconciler) getKMSCaCertificateFromKubeSecret(ctx context.Context, kmsSecret v1alpha1.KMSSecret) (caCertificate string, err error) {
-
+func (r *KMSSecretReconciler) getKMSCaCertificateFromKubeSecret(
+	ctx context.Context,
+	kmsSecret v1alpha1.KMSSecret,
+) (string, error) {
 	caCertificateFromKubeSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
 		Namespace: kmsSecret.Spec.TLS.CaRef.SecretNamespace,
 		Name:      kmsSecret.Spec.TLS.CaRef.SecretName,
@@ -119,52 +80,31 @@ func (r *KMSSecretReconciler) getKMSCaCertificateFromKubeSecret(ctx context.Cont
 	if k8Errors.IsNotFound(err) {
 		return "", fmt.Errorf("kubernetes secret containing custom CA certificate cannot be found. [err=%s]", err)
 	}
-
 	if err != nil {
 		return "", fmt.Errorf("something went wrong when fetching your CA certificate [err=%s]", err)
 	}
 
-	caCertificateFromSecret := string(caCertificateFromKubeSecret.Data[kmsSecret.Spec.TLS.CaRef.SecretKey])
-
-	return caCertificateFromSecret, nil
-}
-
-// Fetches service account credentials from a Kubernetes secret specified in the kmsSecret object, extracts the access key, public key, and private key from the secret, and returns them as a ServiceAccountCredentials object.
-// If any keys are missing or an error occurs, returns an empty object or an error object, respectively.
-func (r *KMSSecretReconciler) getKMSServiceAccountCredentialsFromKubeSecret(ctx context.Context, kmsSecret v1alpha1.KMSSecret) (serviceAccountDetails model.ServiceAccountDetails, err error) {
-	serviceAccountCredsFromKubeSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
-		Namespace: kmsSecret.Spec.Authentication.ServiceAccount.ServiceAccountSecretReference.SecretNamespace,
-		Name:      kmsSecret.Spec.Authentication.ServiceAccount.ServiceAccountSecretReference.SecretName,
-	})
-
-	if k8Errors.IsNotFound(err) {
-		return model.ServiceAccountDetails{}, nil
-	}
-
-	if err != nil {
-		return model.ServiceAccountDetails{}, fmt.Errorf("something went wrong when fetching your service account credentials [err=%s]", err)
-	}
-
-	accessKeyFromSecret := serviceAccountCredsFromKubeSecret.Data[constants.SERVICE_ACCOUNT_ACCESS_KEY]
-	publicKeyFromSecret := serviceAccountCredsFromKubeSecret.Data[constants.SERVICE_ACCOUNT_PUBLIC_KEY]
-	privateKeyFromSecret := serviceAccountCredsFromKubeSecret.Data[constants.SERVICE_ACCOUNT_PRIVATE_KEY]
-
-	if accessKeyFromSecret == nil || publicKeyFromSecret == nil || privateKeyFromSecret == nil {
-		return model.ServiceAccountDetails{}, nil
-	}
-
-	return model.ServiceAccountDetails{AccessKey: string(accessKeyFromSecret), PrivateKey: string(privateKeyFromSecret), PublicKey: string(publicKeyFromSecret)}, nil
+	return string(caCertificateFromKubeSecret.Data[kmsSecret.Spec.TLS.CaRef.SecretKey]), nil
 }
 
 func convertBinaryToStringMap(binaryMap map[string][]byte) map[string]string {
-	stringMap := make(map[string]string)
+	stringMap := make(map[string]string, len(binaryMap))
 	for k, v := range binaryMap {
 		stringMap[k] = string(v)
 	}
 	return stringMap
 }
 
-func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, logger logr.Logger, kmsSecret v1alpha1.KMSSecret, managedSecretReferenceInterface interface{}, secretsFromAPI []model.SingleEnvironmentVariable, ETag string, resourceType constants.ManagedKubeResourceType) error {
+func (r *KMSSecretReconciler) createKMSManagedKubeResource(
+	ctx context.Context,
+	logger logr.Logger,
+	kmsSecret v1alpha1.KMSSecret,
+	managedSecretReferenceInterface interface{},
+	secretsFromAPI []model.SingleEnvironmentVariable,
+	ETag string,
+	resourceType constants.ManagedKubeResourceType,
+) error {
+
 	plainProcessedSecrets := make(map[string][]byte)
 
 	var managedTemplateData *v1alpha1.SecretTemplate
@@ -177,7 +117,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 
 	if managedTemplateData == nil || managedTemplateData.IncludeAllSecrets {
 		for _, secret := range secretsFromAPI {
-			plainProcessedSecrets[secret.Key] = []byte(secret.Value) // plain process
+			plainProcessedSecrets[secret.Key] = []byte(secret.Value)
 		}
 	}
 
@@ -205,7 +145,6 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 		}
 	}
 
-	// copy labels and annotations from KMSSecret CRD
 	labels := map[string]string{}
 	for k, v := range kmsSecret.Labels {
 		labels[k] = v
@@ -227,11 +166,9 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 	}
 
 	if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_SECRET {
-
 		managedSecretReference := managedSecretReferenceInterface.(v1alpha1.ManagedKubeSecretConfig)
-
 		annotations[constants.SECRET_VERSION_ANNOTATION] = ETag
-		// create a new secret as specified by the managed secret spec of CRD
+
 		newKubeSecretInstance := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        managedSecretReference.SecretName,
@@ -244,7 +181,6 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 		}
 
 		if managedSecretReference.CreationPolicy == "Owner" {
-			// Set KMSSecret instance as the owner and controller of the managed secret
 			err := ctrl.SetControllerReference(&kmsSecret, newKubeSecretInstance, r.Scheme)
 			if err != nil {
 				return err
@@ -258,10 +194,8 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 		logger.Info(fmt.Sprintf("Successfully created a managed Kubernetes secret with your KMS secrets. Type: %s", managedSecretReference.SecretType))
 		return nil
 	} else if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_CONFIG_MAP {
-
 		managedSecretReference := managedSecretReferenceInterface.(v1alpha1.ManagedKubeConfigMapConfig)
 
-		// create a new config map as specified by the managed secret spec of CRD
 		newKubeConfigMapInstance := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        managedSecretReference.ConfigMapName,
@@ -273,7 +207,6 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 		}
 
 		if managedSecretReference.CreationPolicy == "Owner" {
-			// Set KMSSecret instance as the owner and controller of the managed config map
 			err := ctrl.SetControllerReference(&kmsSecret, newKubeConfigMapInstance, r.Scheme)
 			if err != nil {
 				return err
@@ -286,13 +219,18 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(ctx context.Context, 
 		}
 		logger.Info(fmt.Sprintf("Successfully created a managed Kubernetes config map with your KMS secrets. Type: %s", managedSecretReference.ConfigMapName))
 		return nil
-
 	}
 	return fmt.Errorf("invalid resource type")
-
 }
 
-func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(ctx context.Context, logger logr.Logger, managedSecretReference v1alpha1.ManagedKubeSecretConfig, managedKubeSecret corev1.Secret, secretsFromAPI []model.SingleEnvironmentVariable, ETag string) error {
+func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(
+	ctx context.Context,
+	logger logr.Logger,
+	managedSecretReference v1alpha1.ManagedKubeSecretConfig,
+	managedKubeSecret corev1.Secret,
+	secretsFromAPI []model.SingleEnvironmentVariable,
+	ETag string,
+) error {
 	managedTemplateData := managedSecretReference.Template
 
 	plainProcessedSecrets := make(map[string][]byte)
@@ -326,7 +264,6 @@ func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(ctx context.Context, lo
 		}
 	}
 
-	// Initialize the Annotations map if it's nil
 	if managedKubeSecret.ObjectMeta.Annotations == nil {
 		managedKubeSecret.ObjectMeta.Annotations = make(map[string]string)
 	}
@@ -343,7 +280,14 @@ func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(ctx context.Context, lo
 	return nil
 }
 
-func (r *KMSSecretReconciler) updateKMSManagedConfigMap(ctx context.Context, logger logr.Logger, managedConfigMapReference v1alpha1.ManagedKubeConfigMapConfig, managedConfigMap corev1.ConfigMap, secretsFromAPI []model.SingleEnvironmentVariable, ETag string) error {
+func (r *KMSSecretReconciler) updateKMSManagedConfigMap(
+	ctx context.Context,
+	logger logr.Logger,
+	managedConfigMapReference v1alpha1.ManagedKubeConfigMapConfig,
+	managedConfigMap corev1.ConfigMap,
+	secretsFromAPI []model.SingleEnvironmentVariable,
+	ETag string,
+) error {
 	managedTemplateData := managedConfigMapReference.Template
 
 	plainProcessedSecrets := make(map[string][]byte)
@@ -377,7 +321,6 @@ func (r *KMSSecretReconciler) updateKMSManagedConfigMap(ctx context.Context, log
 		}
 	}
 
-	// Initialize the Annotations map if it's nil
 	if managedConfigMap.ObjectMeta.Annotations == nil {
 		managedConfigMap.ObjectMeta.Annotations = make(map[string]string)
 	}
@@ -394,93 +337,65 @@ func (r *KMSSecretReconciler) updateKMSManagedConfigMap(ctx context.Context, log
 	return nil
 }
 
-func (r *KMSSecretReconciler) fetchSecretsFromAPI(ctx context.Context, logger logr.Logger, authDetails util.AuthenticationDetails, kmsClient kmsSdk.KMSClientInterface, kmsSecret v1alpha1.KMSSecret) ([]model.SingleEnvironmentVariable, error) {
+func (r *KMSSecretReconciler) fetchSecretsFromAPI(
+	ctx context.Context,
+	logger logr.Logger,
+	authDetails util.AuthenticationDetails,
+	kmsClient *kmsapi.Client,
+) ([]model.SingleEnvironmentVariable, error) {
 
-	if authDetails.AuthStrategy == util.AuthStrategy.SERVICE_ACCOUNT { // Service Account // ! Legacy auth method
-		serviceAccountCreds, err := r.getKMSServiceAccountCredentialsFromKubeSecret(ctx, kmsSecret)
-		if err != nil {
-			return nil, fmt.Errorf("ReconcileKMSSecret: unable to get service account creds from kube secret [err=%s]", err)
-		}
-
-		plainTextSecretsFromApi, err := util.GetPlainTextSecretsViaServiceAccount(kmsClient, serviceAccountCreds, kmsSecret.Spec.Authentication.ServiceAccount.ProjectId, kmsSecret.Spec.Authentication.ServiceAccount.EnvironmentName)
-		if err != nil {
-			return nil, fmt.Errorf("\nfailed to get secrets because [err=%v]", err)
-		}
-
-		logger.Info("ReconcileKMSSecret: Fetched secrets via service account")
-
-		return plainTextSecretsFromApi, nil
-
-	} else if authDetails.AuthStrategy == util.AuthStrategy.SERVICE_TOKEN { // Service Tokens // ! Legacy / Deprecated auth method
-		kmsToken, err := r.getKMSTokenFromKubeSecret(ctx, kmsSecret)
-		if err != nil {
-			return nil, fmt.Errorf("ReconcileKMSSecret: unable to get service token from kube secret [err=%s]", err)
-		}
-
-		envSlug := kmsSecret.Spec.Authentication.ServiceToken.SecretsScope.EnvSlug
-		secretsPath := kmsSecret.Spec.Authentication.ServiceToken.SecretsScope.SecretsPath
-		recursive := kmsSecret.Spec.Authentication.ServiceToken.SecretsScope.Recursive
-
-		plainTextSecretsFromApi, err := util.GetPlainTextSecretsViaServiceToken(kmsClient, kmsToken, envSlug, secretsPath, recursive)
-		if err != nil {
-			return nil, fmt.Errorf("\nfailed to get secrets because [err=%v]", err)
-		}
-
-		logger.Info("ReconcileKMSSecret: Fetched secrets via [type=SERVICE_TOKEN]")
-
-		return plainTextSecretsFromApi, nil
-
-	} else if authDetails.IsMachineIdentityAuth { // * Machine Identity authentication, the SDK will be authenticated at this point
-		plainTextSecretsFromApi, err := util.GetPlainTextSecretsViaMachineIdentity(kmsClient, authDetails.MachineIdentityScope)
-
-		if err != nil {
-			return nil, fmt.Errorf("\nfailed to get secrets because [err=%v]", err)
-		}
-
-		logger.Info(fmt.Sprintf("ReconcileKMSSecret: Fetched secrets via machine identity [type=%v]", authDetails.AuthStrategy))
-
-		return plainTextSecretsFromApi, nil
-
-	} else {
-		return nil, errors.New("no authentication method provided. Please configure a authentication method then try again")
+	if authDetails.AuthStrategy != util.AuthStrategy.UNIVERSAL_MACHINE_IDENTITY {
+		return nil, fmt.Errorf("unsupported authentication strategy %q — only UNIVERSAL_MACHINE_IDENTITY is supported on the canonical luxfi/kms surface", authDetails.AuthStrategy)
 	}
+	plainText, err := util.GetPlainTextSecretsViaMachineIdentity(
+		ctx, kmsClient, authDetails.Host, authDetails.BearerToken, authDetails.MachineIdentityScope,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get secrets: %w", err)
+	}
+	logger.Info(fmt.Sprintf("ReconcileKMSSecret: fetched %d secret(s) via universalAuth", len(plainText)))
+	return plainText, nil
 }
 
 func (r *KMSSecretReconciler) getResourceVariables(kmsSecret v1alpha1.KMSSecret) util.ResourceVariables {
-
-	var resourceVariables util.ResourceVariables
-
-	if _, ok := kmsSecretResourceVariablesMap[string(kmsSecret.UID)]; !ok {
-
-		ctx, cancel := context.WithCancel(context.Background())
-
-		client := kmsSdk.NewKMSClient(ctx, kmsSdk.Config{
-			SiteUrl:       api.API_HOST_URL,
-			CaCertificate: api.API_CA_CERTIFICATE,
-			UserAgent:     api.USER_AGENT_NAME,
-		})
-
-		kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = util.ResourceVariables{
-			KMSClient: client,
-			CancelCtx:       cancel,
-			AuthDetails:     util.AuthenticationDetails{},
-		}
-
-		resourceVariables = kmsSecretResourceVariablesMap[string(kmsSecret.UID)]
-
-	} else {
-		resourceVariables = kmsSecretResourceVariablesMap[string(kmsSecret.UID)]
+	if rv, ok := kmsSecretResourceVariablesMap[string(kmsSecret.UID)]; ok {
+		return rv
 	}
 
-	return resourceVariables
+	_, cancel := context.WithCancel(context.Background())
+	cli, err := kmsapi.New(kmsapi.Config{
+		CACertPEM: api.API_CA_CERTIFICATE,
+		UserAgent: api.USER_AGENT_NAME,
+	})
+	if err != nil {
+		// Fall back to a default-config client; the only failure mode of
+		// kmsapi.New is an unparseable CA bundle, which is tracked
+		// separately on the next reconcile.
+		cli, _ = kmsapi.New(kmsapi.Config{UserAgent: api.USER_AGENT_NAME})
+	}
 
+	rv := util.ResourceVariables{
+		KMSClient:   cli,
+		CancelCtx:   cancel,
+		AuthDetails: util.AuthenticationDetails{},
+	}
+	kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = rv
+	return rv
 }
 
 func (r *KMSSecretReconciler) updateResourceVariables(kmsSecret v1alpha1.KMSSecret, resourceVariables util.ResourceVariables) {
 	kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = resourceVariables
 }
 
-func (r *KMSSecretReconciler) ReconcileKMSSecret(ctx context.Context, logger logr.Logger, kmsSecret *v1alpha1.KMSSecret, managedKubeSecretReferences []v1alpha1.ManagedKubeSecretConfig, managedKubeConfigMapReferences []v1alpha1.ManagedKubeConfigMapConfig) (int, error) {
+// ReconcileKMSSecret runs the full read+project pipeline for a single
+// KMSSecret CR.
+func (r *KMSSecretReconciler) ReconcileKMSSecret(
+	ctx context.Context,
+	logger logr.Logger,
+	kmsSecret *v1alpha1.KMSSecret,
+	managedKubeSecretReferences []v1alpha1.ManagedKubeSecretConfig,
+	managedKubeConfigMapReferences []v1alpha1.ManagedKubeConfigMapConfig,
+) (int, error) {
 
 	if kmsSecret == nil {
 		return 0, fmt.Errorf("kmsSecret is nil")
@@ -490,39 +405,44 @@ func (r *KMSSecretReconciler) ReconcileKMSSecret(ctx context.Context, logger log
 	kmsClient := resourceVariables.KMSClient
 	cancelCtx := resourceVariables.CancelCtx
 	authDetails := resourceVariables.AuthDetails
-	var err error
+	host := api.API_HOST_URL
+	if h := strings.TrimSpace(kmsSecret.Spec.HostAPI); h != "" {
+		host = h
+	}
 
 	if authDetails.AuthStrategy == "" {
 		logger.Info("No authentication strategy found. Attempting to authenticate")
-		authDetails, err = r.handleAuthentication(ctx, *kmsSecret, kmsClient)
+		var err error
+		authDetails, err = r.handleAuthentication(ctx, *kmsSecret, host, kmsClient)
 		r.SetKMSTokenLoadCondition(ctx, logger, kmsSecret, authDetails.AuthStrategy, err)
-
 		if err != nil {
 			return 0, fmt.Errorf("unable to authenticate [err=%s]", err)
 		}
-
 		r.updateResourceVariables(*kmsSecret, util.ResourceVariables{
-			KMSClient: kmsClient,
-			CancelCtx:       cancelCtx,
-			AuthDetails:     authDetails,
+			KMSClient:   kmsClient,
+			CancelCtx:   cancelCtx,
+			AuthDetails: authDetails,
 		})
 	}
 
-	plainTextSecretsFromApi, err := r.fetchSecretsFromAPI(ctx, logger, authDetails, kmsClient, *kmsSecret)
-
+	plainTextSecretsFromApi, err := r.fetchSecretsFromAPI(ctx, logger, authDetails, kmsClient)
 	if err != nil {
+		// On any auth-shaped failure, drop the cached token so the next
+		// reconcile re-issues login.
+		kmsClient.InvalidateToken(authDetails.Host, "", "")
 		return 0, fmt.Errorf("failed to fetch secrets from API for managed secrets [err=%s]", err)
+	}
+	if len(plainTextSecretsFromApi) == 0 {
+		return 0, errors.New("empty fetch — refusing to project an empty Secret")
 	}
 	secretsCount := len(plainTextSecretsFromApi)
 
 	if len(managedKubeSecretReferences) > 0 {
 		for _, managedSecretReference := range managedKubeSecretReferences {
-			// Look for managed secret by name and namespace
 			managedKubeSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
 				Name:      managedSecretReference.SecretName,
 				Namespace: managedSecretReference.SecretNamespace,
 			})
-
 			if err != nil && !k8Errors.IsNotFound(err) {
 				return 0, fmt.Errorf("something went wrong when fetching the managed Kubernetes secret [%w]", err)
 			}
@@ -546,7 +466,6 @@ func (r *KMSSecretReconciler) ReconcileKMSSecret(ctx context.Context, logger log
 				Name:      managedConfigMapReference.ConfigMapName,
 				Namespace: managedConfigMapReference.ConfigMapNamespace,
 			})
-
 			if err != nil && !k8Errors.IsNotFound(err) {
 				return 0, fmt.Errorf("something went wrong when fetching the managed Kubernetes config map [%w]", err)
 			}
@@ -561,7 +480,6 @@ func (r *KMSSecretReconciler) ReconcileKMSSecret(ctx context.Context, logger log
 					return 0, fmt.Errorf("failed to update managed config map [err=%s]", err)
 				}
 			}
-
 		}
 	}
 
