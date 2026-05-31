@@ -49,7 +49,7 @@ func (r *KMSSecretReconciler) handleAuthentication(
 	ctx context.Context,
 	kmsSecret v1alpha1.KMSSecret,
 	host string,
-	kmsClient *kmsapi.Client,
+	kmsClient kmsapi.Transport,
 ) (util.AuthenticationDetails, error) {
 
 	authDetails, err := util.HandleUniversalAuth(ctx, r.Client, util.SecretAuthInput{
@@ -341,7 +341,7 @@ func (r *KMSSecretReconciler) fetchSecretsFromAPI(
 	ctx context.Context,
 	logger logr.Logger,
 	authDetails util.AuthenticationDetails,
-	kmsClient *kmsapi.Client,
+	kmsClient kmsapi.Transport,
 ) ([]model.SingleEnvironmentVariable, error) {
 
 	if authDetails.AuthStrategy != util.AuthStrategy.UNIVERSAL_MACHINE_IDENTITY {
@@ -363,16 +363,11 @@ func (r *KMSSecretReconciler) getResourceVariables(kmsSecret v1alpha1.KMSSecret)
 	}
 
 	_, cancel := context.WithCancel(context.Background())
-	cli, err := kmsapi.New(kmsapi.Config{
-		CACertPEM: api.API_CA_CERTIFICATE,
-		UserAgent: api.USER_AGENT_NAME,
-	})
-	if err != nil {
-		// Fall back to a default-config client; the only failure mode of
-		// kmsapi.New is an unparseable CA bundle, which is tracked
-		// separately on the next reconcile.
-		cli, _ = kmsapi.New(kmsapi.Config{UserAgent: api.USER_AGENT_NAME})
+	host := kmsSecret.Spec.HostAPI
+	if host == "" {
+		host = api.API_HOST_URL
 	}
+	cli := util.BuildTransport(host, api.API_CA_CERTIFICATE, api.USER_AGENT_NAME)
 
 	rv := util.ResourceVariables{
 		KMSClient:   cli,
@@ -382,6 +377,9 @@ func (r *KMSSecretReconciler) getResourceVariables(kmsSecret v1alpha1.KMSSecret)
 	kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = rv
 	return rv
 }
+
+// (transport-selection helpers moved to packages/util/transport.go so
+// both reconcilers share the same factory.)
 
 func (r *KMSSecretReconciler) updateResourceVariables(kmsSecret v1alpha1.KMSSecret, resourceVariables util.ResourceVariables) {
 	kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = resourceVariables

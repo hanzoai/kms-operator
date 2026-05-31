@@ -45,7 +45,7 @@ func (r *KMSPushSecretReconciler) handleAuthentication(
 	ctx context.Context,
 	kmsSecret v1alpha1.KMSPushSecret,
 	host string,
-	kmsClient *kmsapi.Client,
+	kmsClient kmsapi.Transport,
 ) (util.AuthenticationDetails, error) {
 
 	authDetails, err := util.HandleUniversalAuth(ctx, r.Client, util.SecretAuthInput{
@@ -89,13 +89,11 @@ func (r *KMSPushSecretReconciler) getResourceVariables(kmsPushSecret v1alpha1.KM
 	}
 
 	_, cancel := context.WithCancel(context.Background())
-	cli, err := kmsapi.New(kmsapi.Config{
-		CACertPEM: api.API_CA_CERTIFICATE,
-		UserAgent: api.USER_AGENT_NAME,
-	})
-	if err != nil {
-		cli, _ = kmsapi.New(kmsapi.Config{UserAgent: api.USER_AGENT_NAME})
+	host := kmsPushSecret.Spec.HostAPI
+	if host == "" {
+		host = api.API_HOST_URL
 	}
+	cli := util.BuildTransport(host, api.API_CA_CERTIFICATE, api.USER_AGENT_NAME)
 
 	rv := util.ResourceVariables{
 		KMSClient:   cli,
