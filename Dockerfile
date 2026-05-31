@@ -6,6 +6,11 @@ ARG TARGETOS
 ARG TARGETARCH
 
 WORKDIR /workspace
+
+# Go needs `git` to resolve VCS info for modules fetched at build time
+# (e.g. github.com/luxfi/kms). The alpine base image doesn't ship git.
+RUN apk add --no-cache git
+
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
