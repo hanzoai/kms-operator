@@ -90,14 +90,16 @@ var ErrAuthNotApplicable = errors.New("authentication not applicable")
 //     who controls the credentials Secret could smuggle a payload past
 //     a downstream log scrubber, so we reject it here.
 //
-// A nil kms.Client falls back to a fresh on-demand instance — the
-// production code path always supplies one.
+// A nil kmsClient falls back to a fresh HTTP-only on-demand instance —
+// the production code path always supplies one. The ZAP transport
+// (kmszap.Client) is opaque behind the Transport interface; callers
+// pick the concrete implementation at ResourceVariables construction.
 func HandleUniversalAuth(
 	ctx context.Context,
 	reconcilerClient client.Client,
 	secretCrd SecretAuthInput,
 	host string,
-	kmsClient *kmsapi.Client,
+	kmsClient kmsapi.Transport,
 ) (AuthenticationDetails, error) {
 
 	var (
@@ -149,12 +151,21 @@ func HandleUniversalAuth(
 	}
 
 	if kmsClient == nil {
-		var newErr error
-		kmsClient, newErr = kmsapi.New(kmsapi.Config{})
+		newCli, newErr := kmsapi.New(kmsapi.Config{})
 		if newErr != nil {
 			return AuthenticationDetails{}, fmt.Errorf("HandleUniversalAuth: build kms client: %w", newErr)
 		}
+		kmsClient = newCli
 	}
+
+	// On the ZAP transport, NormaliseHost would strip the "zap://"
+	// scheme; preserve the raw host string from the CR so the
+	// underlying transport can route correctly.
+	resolvedHost := host
+	if !kmsapi.IsZAPHost(host) {
+		resolvedHost = kmsapi.NormaliseHost(host)
+	}
+	_ = resolvedHost // used below in AuthenticationDetails
 
 	token, err := kmsClient.LoginCached(ctx, host, creds.ClientId, creds.ClientSecret)
 	if err != nil {
@@ -164,7 +175,7 @@ func HandleUniversalAuth(
 	return AuthenticationDetails{
 		AuthStrategy:         AuthStrategy.UNIVERSAL_MACHINE_IDENTITY,
 		BearerToken:          token,
-		Host:                 kmsapi.NormaliseHost(host),
+		Host:                 resolvedHost,
 		MachineIdentityScope: scope,
 		SecretType:           secretCrd.Type,
 	}, nil

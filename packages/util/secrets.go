@@ -30,7 +30,7 @@ import (
 //     entire reconcile rather than truncate downstream.
 func GetPlainTextSecretsViaMachineIdentity(
 	ctx context.Context,
-	kmsClient *kmsapi.Client,
+	kmsClient kmsapi.Transport,
 	host string,
 	bearerToken string,
 	scope v1alpha1.MachineIdentityScopeInWorkspace,
