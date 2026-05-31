@@ -7,17 +7,12 @@ ARG TARGETARCH
 
 WORKDIR /workspace
 
-# Go needs `git` to resolve VCS info for modules fetched at build time
-# (e.g. github.com/luxfi/kms). The alpine base image doesn't ship git.
-RUN apk add --no-cache git
-
-# Copy the Go Modules manifests
+# Copy the Go Modules manifests + vendor tree. Vendoring is required
+# because github.com/luxfi/kms is private — without vendor we'd need a
+# GitHub PAT in the build context to authenticate `go mod download`.
 COPY go.mod go.mod
 COPY go.sum go.sum
-# cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN --mount=type=cache,target=/go/pkg/mod \
-    go mod download
+COPY vendor/ vendor/
 
 # Copy the go source
 COPY main.go main.go
@@ -25,10 +20,11 @@ COPY api/ api/
 COPY controllers/ controllers/
 COPY packages/ packages/
 
-# Build
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager main.go
+# Build off the vendored deps; -mod=vendor short-circuits the module
+# resolver so no network calls are made during build.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+    go build -mod=vendor -a -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
