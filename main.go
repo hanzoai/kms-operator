@@ -21,6 +21,7 @@ import (
 	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
 	kmsPushSecretController "github.com/hanzoai/kms-operator/controllers/kmspushsecret"
 	kmsSecretController "github.com/hanzoai/kms-operator/controllers/kmssecret"
+	"github.com/hanzoai/kms-operator/internal/bootstrap"
 	"github.com/hanzoai/kms-operator/packages/template"
 	//+kubebuilder:scaffold:imports
 )
@@ -81,10 +82,24 @@ func main() {
 
 	template.InitializeTemplateFunctions()
 
+	// kms-consensus-authority reconciler — bootstrap the operator's own
+	// service identity, walk per-service mnemonic Secrets, and pull the
+	// upstream luxd validator set on the configured TTL. The same
+	// instance is wired into the KMSSecret reconciler so a CR addition
+	// auto-enrols its consumer's identity within one reconcile tick.
+	bootstrapCfg, err := bootstrap.LoadConfigFromEnv()
+	if err != nil {
+		setupLog.Error(err, "load bootstrap config")
+		os.Exit(1)
+	}
+	authorityRec := bootstrap.NewReconciler(mgr.GetClient(), ctrl.Log, bootstrapCfg, nil)
+
 	if err = (&kmsSecretController.KMSSecretReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		BaseLogger: ctrl.Log,
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
+		BaseLogger:               ctrl.Log,
+		IdentityEnsurer:          authorityRec,
+		DefaultMnemonicNamespace: bootstrapCfg.DefaultMnemonicNamespace,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KMSSecret")
 		os.Exit(1)
@@ -97,6 +112,11 @@ func main() {
 		IsNamespaceScoped: namespace != "",
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "KMSPushSecret")
+		os.Exit(1)
+	}
+
+	if err := mgr.Add(authorityRec); err != nil {
+		setupLog.Error(err, "unable to register kms-consensus-authority reconciler")
 		os.Exit(1)
 	}
 
