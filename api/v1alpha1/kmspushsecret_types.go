@@ -80,6 +80,16 @@ type KMSPushSecretSpec struct {
 
 	// +kubebuilder:validation:Optional
 	TLS TLSConfig `json:"tls"`
+
+	// ServicePath is the canonical service identity path used to derive
+	// the consumer's NodeID. See KMSSecretSpec.ServicePath.
+	// +kubebuilder:validation:Optional
+	ServicePath string `json:"servicePath,omitempty"`
+
+	// MnemonicSecretRef points at a Secret holding the BIP-39 mnemonic
+	// that derives this consumer's identity. See KMSSecretSpec.MnemonicSecretRef.
+	// +kubebuilder:validation:Optional
+	MnemonicSecretRef KubeSecretReference `json:"mnemonicSecretRef,omitempty"`
 }
 
 // KMSPushSecretStatus defines the observed state of KMSPushSecret

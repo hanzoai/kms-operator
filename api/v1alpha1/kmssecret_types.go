@@ -159,6 +159,23 @@ type KMSSecretSpec struct {
 
 	// +kubebuilder:validation:Optional
 	TLS TLSConfig `json:"tls"`
+
+	// ServicePath is the canonical service identity path used to derive
+	// the consumer's NodeID (see luxfi/keys.NewServiceIdentity). Empty
+	// → "hanzo/<crname>". Identical paths derive identical NodeIDs from
+	// the same mnemonic, so do not reuse a path across distinct
+	// services.
+	// +kubebuilder:validation:Optional
+	ServicePath string `json:"servicePath,omitempty"`
+
+	// MnemonicSecretRef points at a Secret holding the BIP-39 mnemonic
+	// that derives this consumer's identity. Empty → defaults to
+	// "<crname>-mnemonic" in the same namespace as the CR. The Secret
+	// is generated and persisted by the operator on first reconcile
+	// when it does not exist. The mnemonic itself is NEVER written to
+	// CR status, logs, events, or any non-Secret resource.
+	// +kubebuilder:validation:Optional
+	MnemonicSecretRef KubeSecretReference `json:"mnemonicSecretRef,omitempty"`
 }
 
 // KMSSecretStatus defines the observed state of KMSSecret

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,16 +18,37 @@ import (
 
 	"github.com/go-logr/logr"
 	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	"github.com/hanzoai/kms-operator/internal/bootstrap"
 	"github.com/hanzoai/kms-operator/packages/api"
 	controllerhelpers "github.com/hanzoai/kms-operator/packages/controllerhelpers"
 	"github.com/hanzoai/kms-operator/packages/util"
 )
+
+// IdentityEnsurer is the seam the bootstrap.Reconciler implements. The
+// KMSSecret reconciler calls EnsureServiceIdentity at the top of every
+// pass so the consumer's mnemonic + NodeID is in place before any KMS
+// request goes out — guaranteeing the consumer can authenticate to the
+// kmsd ZAP server on first successful fetch.
+type IdentityEnsurer interface {
+	EnsureServiceIdentity(ctx context.Context, ref bootstrap.MnemonicRef, servicePath string) (string, error)
+}
 
 // KMSSecretReconciler reconciles a KMSSecret object
 type KMSSecretReconciler struct {
 	client.Client
 	BaseLogger logr.Logger
 	Scheme     *runtime.Scheme
+
+	// IdentityEnsurer guarantees a mnemonic Secret + derived NodeID
+	// exists for the CR's consumer. May be nil in tests; production
+	// wiring passes a bootstrap.Reconciler.
+	IdentityEnsurer IdentityEnsurer
+
+	// DefaultMnemonicNamespace is the fallback namespace for
+	// per-service mnemonic Secrets when the CR's
+	// spec.mnemonicSecretRef.secretNamespace is empty. Defaults to
+	// "hanzo" via the bootstrap config.
+	DefaultMnemonicNamespace string
 }
 
 const FINALIZER_NAME = "secrets.finalizers.lux.network"
@@ -143,6 +165,20 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		api.API_HOST_URL = kmsSecretCRD.Spec.HostAPI
 	}
 
+	// Ensure the CR's consumer has a mnemonic Secret + derived NodeID
+	// registered with the kms-consensus-authority. Idempotent; runs on
+	// every reconcile pass so a freshly-created CR is auto-enrolled
+	// within one tick.
+	if r.IdentityEnsurer != nil {
+		ref, path := r.resolveIdentityRef(&kmsSecretCRD)
+		if _, err := r.IdentityEnsurer.EnsureServiceIdentity(ctx, ref, path); err != nil {
+			logger.Error(err, "ensure service identity (continuing — periodic reconcile will retry)",
+				"mnemonicSecret", fmt.Sprintf("%s/%s", ref.Namespace, ref.Name),
+				"servicePath", path,
+			)
+		}
+	}
+
 	if kmsSecretCRD.Spec.TLS.CaRef.SecretName != "" {
 		api.API_CA_CERTIFICATE, err = r.getKMSCaCertificateFromKubeSecret(ctx, kmsSecretCRD)
 		if err != nil {
@@ -182,6 +218,37 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{
 		RequeueAfter: requeueTime,
 	}, nil
+}
+
+// resolveIdentityRef returns the mnemonic Secret ref + canonical
+// service path the bootstrap.Reconciler should enrol for cr. Defaults:
+//
+//   - ref.Name = cr.Spec.MnemonicSecretRef.SecretName when set, else
+//     "<crname>-mnemonic".
+//   - ref.Namespace = cr.Spec.MnemonicSecretRef.SecretNamespace when
+//     set, else r.DefaultMnemonicNamespace (typically "hanzo"), else
+//     cr.Namespace.
+//   - servicePath = cr.Spec.ServicePath when set, else "hanzo/<crname>".
+func (r *KMSSecretReconciler) resolveIdentityRef(cr *secretsv1alpha1.KMSSecret) (bootstrap.MnemonicRef, string) {
+	ref := bootstrap.MnemonicRef{
+		Namespace: cr.Spec.MnemonicSecretRef.SecretNamespace,
+		Name:      cr.Spec.MnemonicSecretRef.SecretName,
+	}
+	if ref.Name == "" {
+		ref.Name = cr.Name + "-mnemonic"
+	}
+	if ref.Namespace == "" {
+		if r.DefaultMnemonicNamespace != "" {
+			ref.Namespace = r.DefaultMnemonicNamespace
+		} else {
+			ref.Namespace = cr.Namespace
+		}
+	}
+	path := strings.TrimSpace(cr.Spec.ServicePath)
+	if path == "" {
+		path = "hanzo/" + cr.Name
+	}
+	return ref, path
 }
 
 func (r *KMSSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {

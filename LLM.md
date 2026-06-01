@@ -114,9 +114,87 @@ kms-operator/
   `util.BuildTransport` at `getResourceVariables`; pass the Transport
   to the reconcile pipeline.
 
+## Consensus-authority reconciler (v0.3.1+)
+
+`internal/bootstrap/` owns the `kms-consensus-authority` Secret that
+the kmsd loads via `KMS_CONSENSUS_FILE`. The package is a
+controller-runtime `Runnable` registered alongside the CR reconcilers
+and gated by leader election.
+
+Responsibilities:
+
+  1. **Bootstrap** — on Start, ensure `kms-operator-mnemonic` Secret
+     exists in the target namespace (default `hanzo`). Generate a
+     fresh 24-word BIP-39 phrase if absent (or load from
+     `KMS_OPERATOR_MNEMONIC` env). Derive the operator's NodeID via
+     the byte-for-byte port of `luxfi/keys.NewServiceIdentity`
+     (`service_identity.go`). Write the initial
+     `kms-consensus-authority` Secret with that NodeID as the sole
+     operator + the current luxd validator set.
+
+  2. **Per-service identity** — each `KMSSecret` CR reconcile calls
+     `EnsureServiceIdentity(ref, servicePath)`. If the mnemonic
+     Secret is missing the operator generates + persists one, then
+     derives the NodeID and stamps the canonical path back onto the
+     Secret as an annotation (`kms-operator.lux.network/service-path`)
+     so the periodic reconcile can re-derive without consulting the
+     CR.
+
+  3. **TTL reconcile** — every `KMS_CONSENSUS_TTL` (default 30s):
+       a. Re-derive the operator NodeID (cached after first call).
+       b. List every Secret in `KMS_MNEMONIC_NAMESPACE` carrying
+          label `app.kubernetes.io/component=service-mnemonic` and
+          derive each one's NodeID under its stamped service path.
+       c. Pull `platform.getCurrentValidators` from `LUXD_RPC_URL`.
+       d. Compose a canonical snapshot
+          `{"validators": [...], "operators": [...]}` and `Update`
+          the authority Secret only when the canonical bytes differ.
+
+Fail-closed: any luxd unreachable / HTTP error leaves the authority
+Secret untouched. The kmsd continues honouring the prior snapshot
+until the next successful tick.
+
+Mnemonic discipline: the BIP-39 phrase NEVER appears in CR status, in
+operator logs, or in any non-Secret resource. Only the source category
+(`secret` / `env` / `generate`) and the derived NodeID surface.
+
+Determinism contract: `service_identity_test.go` pins NodeIDs derived
+locally against vectors produced by `luxfi/keys.NewServiceIdentity` at
+v1.0.10. Treat any failure as an emergency — drift would silently
+revoke every consumer's KMS access.
+
+### Env vars
+
+| Var | Default | Meaning |
+|-----|---------|---------|
+| `KMS_AUTHORITY_NAMESPACE` | `hanzo` | Namespace of the authority Secret + per-service mnemonic Secrets. |
+| `KMS_AUTHORITY_SECRET` | `kms-consensus-authority` | Authority Secret name. |
+| `KMS_MNEMONIC_NAMESPACE` | `$KMS_AUTHORITY_NAMESPACE` | Namespace scanned for `app.kubernetes.io/component=service-mnemonic` Secrets. |
+| `KMS_OPERATOR_MNEMONIC_SECRET` | `kms-operator-mnemonic` | Operator's own mnemonic Secret name. |
+| `KMS_OPERATOR_MNEMONIC` | _unset_ | Optional bootstrap env carrying a pre-existing operator mnemonic. Honoured only on first-boot when the Secret is absent. |
+| `KMS_OPERATOR_SERVICE_PATH` | `hanzo/kms-operator` | Canonical service path for the operator's own derivation. |
+| `LUXD_RPC_URL` | `http://luxd-headless.lux-mainnet.svc.cluster.local:9650` | luxd Platform Chain RPC base. The hanzo cluster routes this at `https://api.lux.network` in production. |
+| `KMS_CONSENSUS_TTL` | `30s` | Cadence of the periodic luxd-validator-set refresh. |
+
+### CRD additions (v0.3.1+)
+
+`KMSSecretSpec` and `KMSPushSecretSpec` gain two optional fields:
+
+  - `spec.servicePath` — canonical service path for the consumer's
+    NodeID derivation. Empty → `hanzo/<crname>`.
+  - `spec.mnemonicSecretRef` — `KubeSecretReference` to an existing
+    mnemonic Secret. Empty → `<crname>-mnemonic` in
+    `KMS_MNEMONIC_NAMESPACE`.
+
+Backward compatible: omitting both fields falls back to the
+auto-derived defaults so existing CRs continue working without edit.
+
 ## Releases
 
 - `v0.1.0` (2026-03)  initial port to canonical /v1/kms/* surface.
 - `v0.2.0` (2026-04)  hardening: control-byte filter, fail-closed on
                       empty fetch, token cache, same-ns credentialsRef.
 - `v0.3.0` (2026-05)  ZAP transport alongside HTTP.
+- `v0.3.1` (2026-05)  kms-consensus-authority reconciler. Closes the
+                      operator-side bootstrap left open by the
+                      consensus-native-identity agent.
