@@ -5,6 +5,9 @@ FROM golang:1.26-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+RUN apk add --no-cache ca-certificates tzdata
+RUN addgroup -g 65532 -S nonroot && adduser -u 65532 -S nonroot -G nonroot
+
 WORKDIR /workspace
 
 # Copy the Go Modules manifests + vendor tree. Vendoring is required
@@ -26,10 +29,13 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
     go build -mod=vendor -a -o manager main.go
 
-# Use distroless as minimal base image to package the manager binary
-# Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+# Scratch runtime — static binary + CA certs + tzdata + nonroot user.
+FROM scratch
 WORKDIR /
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/passwd /etc/passwd
+COPY --from=builder /etc/group /etc/group
 COPY --from=builder /workspace/manager .
 USER 65532:65532
 
