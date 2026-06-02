@@ -7,14 +7,9 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write
 jobs:
   docker:
     uses: hanzoai/.github/.github/workflows/docker-build.yml@main
     with:
       image: ghcr.io/hanzoai/kms-operator
-      # arm64 paused — DOKS has no arm64 droplets, and the
-      # `hanzo-build-linux-arm64` ARC scale set is not provisioned.
-      # See hanzo LLM.md ("arm64 paused (2026-04-27)").
-      platforms: linux/amd64
     secrets: inherit
