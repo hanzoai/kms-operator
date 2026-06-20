@@ -1,4 +1,4 @@
-# LLM.md - Hanzo Kms Operator
+# Hanzo Kms Operator
 
 ## Overview
 Go module: `github.com/hanzoai/kms-operator`.
