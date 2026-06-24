@@ -9,7 +9,7 @@
 //
 //   1. MNEMONIC env var — local dev + CI test seam. Validated as
 //      BIP-39 before use.
-//   2. Native ZAP from Liquid KMS at (addr, env, path). The path may
+//   2. Native ZAP from KMS at (addr, env, path). The path may
 //      include a directory portion (e.g. "/staking/0/master"); the
 //      split-on-last-slash convention mirrors the staking-key layout
 //      callers already use.
