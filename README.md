@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/hero.svg" alt="kms-operator" width="880"></p>
+
 # k8-operator
 // TODO
 
