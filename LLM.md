@@ -198,3 +198,47 @@ auto-derived defaults so existing CRs continue working without edit.
 - `v0.3.1` (2026-05)  kms-consensus-authority reconciler. Closes the
                       operator-side bootstrap left open by the
                       consensus-native-identity agent.
+- `v0.4.0` (2026-07)  per-service WRITE path-scopes in the authority
+                      snapshot (task #53). Also fixes two pre-existing
+                      build blockers: Dockerfile now `COPY internal/`,
+                      and flags the stale-vendor drift (see below).
+
+## Path-scope activation (task #53) — state + open model gap
+
+The kms-consensus-authority snapshot now carries an optional least-privilege
+`scopes` overlay (`AuthorityScopes{validators,operators}`, NodeID→prefix).
+The kmsd consumer (luxfi/kms `cmd/kms/consensus.go`, from
+`feat/v1-sdk-secrets-plane`) parses it into `NewScopedAuthorityProvider` and
+confines each bound NodeID to its granted subtree; absent scopes → flat +
+a boot WARN. End-to-end scoped-deny is proven through `verifyAndAuthorize`
+(luxfi/kms `pkg/zapserver/path_scope_e2e_test.go`).
+
+**What the operator emits now:** `scopes.operators` = each service NodeID
+confined to its OWN subtree (`deriveServiceScope` = the canonical service
+path), the kms-operator itself unconfined. `scopes.validators` = **flat**
+(the luxd L1 consensus set has no per-node secret subtree).
+
+**Open model gap — DO NOT guess the read boundary:**
+1. The enveloped `/v1/sdk` ZAP plane is **OFF in prod**: the live kmsd
+   (`ghcr.io/luxfi/kms:1.11.8`, universe `infra/k8s/kms/deployment.yaml`)
+   mounts **no** `KMS_CONSENSUS_FILE` and no `kms-consensus-authority`
+   Secret. All secret access is the legacy HTTP `/v1/kms/orgs/{org}/secrets`
+   path (IAM JWT, org-scoped by `owner`). So path-scope is defense-in-depth
+   readiness, **not** a live blast-radius reduction yet.
+2. zapserver requires **validator (read) membership for ALL ops**; services
+   are placed in `operators` (write) **only** → a service can neither read
+   nor write via the plane today, so the operator write-scope is inert until
+   the plane is activated AND services are added to the read authority.
+   Confining a compromised SERVICE key's READS (the task's actual goal)
+   needs services to become **scoped members of the READ (validator)
+   authority** — an authority-placement decision (recommended:
+   operators ⊆ validators, each scoped to its own subtree; luxd L1 either
+   unconfined readers or dropped). **Left for CTO confirmation.**
+
+**Activation checklist (all gated):** (a) merge the /v1/sdk plane PR +
+this operator PR; (b) re-sync stale vendor (`go mod vendor` on a networked
+runner — x/{sys,term,text,tools} pinned newer in go.mod than vendored);
+(c) confirm the read-authority placement + emit `scopes.validators`;
+(d) mount `KMS_CONSENSUS_FILE=/etc/kms/consensus-authority.json` (the
+`kms-consensus-authority` Secret) into the kmsd Deployment;
+(e) semver tag → operator CR.
