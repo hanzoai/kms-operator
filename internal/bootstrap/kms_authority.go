@@ -224,7 +224,7 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		return fmt.Errorf("ensure operator identity: %w", err)
 	}
 
-	operatorIDs, err := r.collectOperatorAuthority(ctx, operatorID)
+	operatorIDs, operatorScopes, err := r.collectOperatorAuthority(ctx, operatorID)
 	if err != nil {
 		return fmt.Errorf("collect operator authority: %w", err)
 	}
@@ -239,9 +239,22 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		return fetchErr
 	}
 
+	// Least-privilege overlay. The WRITE (operator) authority is confined
+	// per-service: each service NodeID may write only its own secret subtree
+	// (<org>/<service>/*); the kms-operator itself stays unconfined (broad
+	// write — it is the authority). The READ (validator) authority is left
+	// FLAT (Validators nil): its members are the upstream luxd L1 consensus
+	// set, which has no per-node secret subtree to confine to. Scoping the
+	// READ authority to per-service subtrees — the change that would confine
+	// a compromised SERVICE key's reads — depends on services becoming
+	// scoped members of the read authority, an authority-placement decision
+	// tracked separately (see LLM.md / task #53 handoff).
 	snap := Snapshot{
 		Validators: validators,
 		Operators:  operatorIDs,
+		Scopes: &AuthorityScopes{
+			Operators: operatorScopes,
+		},
 	}
 	changed, err := SaveAuthority(ctx, r.client, r.cfg.AuthorityRef, snap)
 	if err != nil {
@@ -251,6 +264,7 @@ func (r *Reconciler) reconcileOnce(ctx context.Context) error {
 		r.logger.Info("kms-consensus-authority secret updated",
 			"validators", len(validators),
 			"operators", len(operatorIDs),
+			"operatorScopes", len(operatorScopes),
 		)
 	}
 	return nil
@@ -299,7 +313,7 @@ func (r *Reconciler) ensureOperatorIdentity(ctx context.Context) (string, error)
 // provides an explicit path. Each Secret may carry an optional
 // annotation `kms-operator.lux.network/service-path` with the
 // canonical path the consumer was registered under.
-func (r *Reconciler) collectOperatorAuthority(ctx context.Context, operatorNodeID string) ([]string, error) {
+func (r *Reconciler) collectOperatorAuthority(ctx context.Context, operatorNodeID string) ([]string, map[string]string, error) {
 	componentSelector, _ := labels.NewRequirement(
 		mnemonicComponentLabelKey,
 		selection.Equals,
@@ -312,10 +326,15 @@ func (r *Reconciler) collectOperatorAuthority(ctx context.Context, operatorNodeI
 
 	var list corev1.SecretList
 	if err := r.client.List(ctx, &list, listOpts...); err != nil {
-		return nil, fmt.Errorf("list service-mnemonic secrets: %w", err)
+		return nil, nil, fmt.Errorf("list service-mnemonic secrets: %w", err)
 	}
 
 	out := []string{operatorNodeID}
+	// The operator itself is unconfined (broad write). Every service NodeID
+	// is confined to its own secret subtree. A non-nil scope map with every
+	// member granted keeps the WRITE authority fail-closed for any future
+	// member the operator forgets to grant.
+	scopes := map[string]string{operatorNodeID: ""}
 	for i := range list.Items {
 		sec := &list.Items[i]
 		// Skip the operator's own mnemonic — already in `out`.
@@ -338,8 +357,21 @@ func (r *Reconciler) collectOperatorAuthority(ctx context.Context, operatorNodeI
 			continue
 		}
 		out = append(out, nodeID)
+		scopes[nodeID] = deriveServiceScope(path)
 	}
-	return out, nil
+	return out, scopes, nil
+}
+
+// deriveServiceScope returns the least-privilege secret-path prefix a
+// service identity is confined to: its OWN subtree — the canonical service
+// path itself. A service derived under "hanzo/commerce" may write only
+// "hanzo/commerce" and its descendants, never a sibling
+// ("hanzo/commerce-evil"), a parent ("hanzo"), or another org. This is the
+// same value the NodeID was derived from, so the scope is authority-side
+// (unspoofable by the caller). trimIdentityPath gives the canonical
+// "/"-joined form the kmsd compares against.
+func deriveServiceScope(servicePath string) string {
+	return trimIdentityPath(servicePath)
 }
 
 // EnsureServiceIdentity is the per-CR hook the controllers call. It

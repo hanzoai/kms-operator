@@ -52,20 +52,77 @@ const AuthorityKey = "consensus-authority.json"
 // Snapshot is the wire shape produced by the operator and consumed by
 // kmsd's loadConsensusSnapshot (luxfi/kms cmd/kms/consensus.go). The
 // field names match the kmsd consumer byte-for-byte.
+//
+// Scopes is the OPTIONAL least-privilege overlay: it confines each member
+// NodeID of an authority to a secret-path prefix so a single compromised
+// key cannot reach the entire secret tree. Absent (nil) => both authorities
+// flat (unconfined) — the pre-existing role-based posture. The scope is
+// AUTHORITY-side data keyed by the derived NodeID; the operator knows each
+// service's path when it builds the snapshot, so it cannot be spoofed by a
+// caller's envelope. Consumed by kmsd's consensusScopes (byte-for-byte).
 type Snapshot struct {
-	Validators []string `json:"validators"`
-	Operators  []string `json:"operators"`
+	Validators []string         `json:"validators"`
+	Operators  []string         `json:"operators"`
+	Scopes     *AuthorityScopes `json:"scopes,omitempty"`
+}
+
+// AuthorityScopes carries the per-authority NodeID→path-prefix grants. A
+// non-nil authority map opts that authority into least-privilege scoping (a
+// member absent from the map is DENIED every path — fail closed); a nil map
+// leaves that authority flat. The two authorities scope independently.
+//
+// The inner maps carry NO omitempty: a present-but-empty map ("scoped, zero
+// grants") must survive the JSON round trip as `{}` rather than being
+// dropped to null (which the kmsd reads as flat — fail OPEN). nil => `null`
+// (flat); `{}` => `{}` (scoped, deny all).
+type AuthorityScopes struct {
+	Validators map[string]string `json:"validators"`
+	Operators  map[string]string `json:"operators"`
 }
 
 // MarshalCanonical returns the canonical JSON form of the snapshot:
 // keys sorted, no trailing newline. Used both for write-on-change
-// equality and as the bytes persisted into the Secret.
+// equality and as the bytes persisted into the Secret. Map keys are sorted
+// deterministically by encoding/json, so the scope maps need no explicit
+// ordering — only prefix normalization.
 func (s Snapshot) MarshalCanonical() ([]byte, error) {
 	c := Snapshot{
 		Validators: dedupeSorted(s.Validators),
 		Operators:  dedupeSorted(s.Operators),
+		Scopes:     canonicalScopes(s.Scopes),
 	}
 	return json.Marshal(c)
+}
+
+// canonicalScopes normalizes the scope prefixes (trim whitespace +
+// surrounding slashes) while preserving the nil-vs-empty distinction that
+// carries the flat-vs-scoped signal. Returns nil for a nil input.
+func canonicalScopes(sc *AuthorityScopes) *AuthorityScopes {
+	if sc == nil {
+		return nil
+	}
+	return &AuthorityScopes{
+		Validators: normalizeScopeMap(sc.Validators),
+		Operators:  normalizeScopeMap(sc.Operators),
+	}
+}
+
+// normalizeScopeMap trims each prefix to its canonical "/"-joined form and
+// drops blank keys. nil stays nil (flat); a non-nil map stays non-nil even
+// when empty (scoped, zero grants — fail closed on the consumer).
+func normalizeScopeMap(m map[string]string) map[string]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		k = strings.TrimSpace(k)
+		if k == "" {
+			continue
+		}
+		out[k] = strings.Trim(strings.TrimSpace(v), "/")
+	}
+	return out
 }
 
 // Equal reports whether two snapshots project the same authority set
