@@ -22,6 +22,9 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY packages/ packages/
+# internal/bootstrap holds the kms-consensus-authority reconciler that
+# main.go imports; without it the build fails "package … is not in std".
+COPY internal/ internal/
 
 # Build off the vendored deps; -mod=vendor short-circuits the module
 # resolver so no network calls are made during build.
