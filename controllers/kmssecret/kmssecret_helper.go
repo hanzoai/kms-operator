@@ -353,7 +353,7 @@ func (r *KMSSecretReconciler) fetchSecretsFromAPI(
 	if err != nil {
 		return nil, fmt.Errorf("failed to get secrets: %w", err)
 	}
-	logger.Info(fmt.Sprintf("ReconcileKMSSecret: fetched %d secret(s) via universalAuth", len(plainText)))
+	logger.V(1).Info(fmt.Sprintf("ReconcileKMSSecret: fetched %d secret(s) via universalAuth", len(plainText)))
 	return plainText, nil
 }
 
