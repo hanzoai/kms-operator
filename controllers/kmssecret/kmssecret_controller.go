@@ -107,7 +107,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if kmsSecretCRD.Spec.ManagedSecretReference.SecretName != "" {
-		logger.Info("\n\n\nThe field `managedSecretReference` will be deprecated in the near future, please use `managedKubeSecretReferences` instead.\n\nRefer to the documentation for more information: https://lux.network/docs/integrations/platforms/kubernetes/kms-secret-crd\n\n\n")
+		logger.V(1).Info("\n\n\nThe field `managedSecretReference` will be deprecated in the near future, please use `managedKubeSecretReferences` instead.\n\nRefer to the documentation for more information: https://lux.network/docs/integrations/platforms/kubernetes/kms-secret-crd\n\n\n")
 
 		if managedKubeSecretReferences == nil {
 			managedKubeSecretReferences = []secretsv1alpha1.ManagedKubeSecretConfig{}

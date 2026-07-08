@@ -80,21 +80,21 @@ type Config struct {
 }
 
 const (
-	envAuthorityNamespace        = "KMS_AUTHORITY_NAMESPACE"
-	envAuthoritySecret           = "KMS_AUTHORITY_SECRET"
-	envOperatorMnemonicSecret    = "KMS_OPERATOR_MNEMONIC_SECRET"
-	envOperatorMnemonicEnv       = "KMS_OPERATOR_MNEMONIC"
-	envOperatorServicePath       = "KMS_OPERATOR_SERVICE_PATH"
-	envLuxdRPCURL                = "LUXD_RPC_URL"
-	envConsensusTTL              = "KMS_CONSENSUS_TTL"
-	envDefaultMnemonicNamespace  = "KMS_MNEMONIC_NAMESPACE"
-	defaultAuthorityNamespace    = "hanzo"
-	defaultAuthoritySecret       = "kms-consensus-authority"
-	defaultOperatorMnemonicName  = "kms-operator-mnemonic"
-	defaultOperatorServicePath   = "hanzo/kms-operator"
-	defaultTTL                   = 30 * time.Second
-	mnemonicComponentLabelKey    = "app.kubernetes.io/component"
-	mnemonicComponentLabelValue  = "service-mnemonic"
+	envAuthorityNamespace       = "KMS_AUTHORITY_NAMESPACE"
+	envAuthoritySecret          = "KMS_AUTHORITY_SECRET"
+	envOperatorMnemonicSecret   = "KMS_OPERATOR_MNEMONIC_SECRET"
+	envOperatorMnemonicEnv      = "KMS_OPERATOR_MNEMONIC"
+	envOperatorServicePath      = "KMS_OPERATOR_SERVICE_PATH"
+	envLuxdRPCURL               = "LUXD_RPC_URL"
+	envConsensusTTL             = "KMS_CONSENSUS_TTL"
+	envDefaultMnemonicNamespace = "KMS_MNEMONIC_NAMESPACE"
+	defaultAuthorityNamespace   = "hanzo"
+	defaultAuthoritySecret      = "kms-consensus-authority"
+	defaultOperatorMnemonicName = "kms-operator-mnemonic"
+	defaultOperatorServicePath  = "hanzo/kms-operator"
+	defaultTTL                  = 30 * time.Second
+	mnemonicComponentLabelKey   = "app.kubernetes.io/component"
+	mnemonicComponentLabelValue = "service-mnemonic"
 )
 
 // LoadConfigFromEnv resolves the Reconciler config from environment
@@ -369,7 +369,7 @@ func (r *Reconciler) EnsureServiceIdentity(
 	if err != nil {
 		return "", fmt.Errorf("derive service identity (path=%q): %w", servicePath, err)
 	}
-	r.logger.Info("service identity ensured",
+	r.logger.V(1).Info("service identity ensured",
 		"mnemonicSource", src,
 		"mnemonicSecret", fmt.Sprintf("%s/%s", ref.Namespace, ref.Name),
 		"servicePath", servicePath,
