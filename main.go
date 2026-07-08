@@ -31,6 +31,19 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+// apiWarningToDebug routes Kubernetes API-server warning headers to V(1).
+// KMSSecret CRD schema drift makes the server emit an "unknown field spec.X"
+// warning on every reconcile of every CR — thousands of lines/min, the
+// operator's dominant log volume. Demoting keeps them at --zap-log-level=debug
+// while the default (info) stream stays clean. Implements rest.WarningHandler.
+type apiWarningToDebug struct{}
+
+func (apiWarningToDebug) HandleWarningHeader(code int, _ string, message string) {
+	if code == 299 && message != "" {
+		ctrl.Log.WithName("kube-api-warning").V(1).Info(message)
+	}
+}
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -74,7 +87,9 @@ func main() {
 		}
 	}
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrlOpts)
+	cfg := ctrl.GetConfigOrDie()
+	cfg.WarningHandler = apiWarningToDebug{}
+	mgr, err := ctrl.NewManager(cfg, ctrlOpts)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
