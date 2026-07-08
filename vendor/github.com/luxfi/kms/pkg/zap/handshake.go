@@ -23,15 +23,15 @@
 //
 // Wire format (little-endian where multi-byte):
 //
-//   ClientHello (frame opcode 0x00F0):
-//     +0   uint16 caps         // bit 0 = ML-KEM-768 supported
-//     +2   [32]byte x25519_pk  // ephemeral X25519 public key
-//     +34  [1184]byte mlkem_pk // ML-KEM-768 public key (omit if !cap0)
+//	ClientHello (frame opcode 0x00F0):
+//	  +0   uint16 caps         // bit 0 = ML-KEM-768 supported
+//	  +2   [32]byte x25519_pk  // ephemeral X25519 public key
+//	  +34  [1184]byte mlkem_pk // ML-KEM-768 public key (omit if !cap0)
 //
-//   ServerHello (frame opcode 0x00F1):
-//     +0    uint16 caps         // bit 0 echoed (set iff both sides support)
-//     +2    [32]byte x25519_pk  // ephemeral X25519 public key
-//     +34   [1088]byte mlkem_ct // ML-KEM-768 ciphertext (omit if !cap0)
+//	ServerHello (frame opcode 0x00F1):
+//	  +0    uint16 caps         // bit 0 echoed (set iff both sides support)
+//	  +2    [32]byte x25519_pk  // ephemeral X25519 public key
+//	  +34   [1088]byte mlkem_ct // ML-KEM-768 ciphertext (omit if !cap0)
 //
 // The combined secret feeds HKDF-SHA256 with info "kms/zap/v1/session"
 // and a transcript hash salt (SHA-256 of the concatenated hello frames).
@@ -76,11 +76,11 @@ const (
 
 // Sizes per FIPS 203 (ML-KEM-768) and RFC 7748 (X25519).
 const (
-	X25519PubSize  = 32
-	X25519PrivSize = 32
-	MLKEMPubSize   = mlkem.PublicKeySize  // 1184
-	MLKEMCtSize    = mlkem.CiphertextSize // 1088
-	MLKEMSharedSize = mlkem.SharedKeySize // 32
+	X25519PubSize   = 32
+	X25519PrivSize  = 32
+	MLKEMPubSize    = mlkem.PublicKeySize  // 1184
+	MLKEMCtSize     = mlkem.CiphertextSize // 1088
+	MLKEMSharedSize = mlkem.SharedKeySize  // 32
 
 	SessionKeySize = 32 // AES-256-GCM
 )
@@ -117,10 +117,10 @@ type ServerHelloFrame struct {
 // ClientState holds the ephemeral private keys a client needs to keep
 // between sending hello and processing the server reply.
 type ClientState struct {
-	caps         uint16
-	x25519Priv   *ecdh.PrivateKey
-	mlkemPriv    *mlkem.PrivateKey
-	helloBytes   []byte // serialized client hello, used in transcript hash
+	caps       uint16
+	x25519Priv *ecdh.PrivateKey
+	mlkemPriv  *mlkem.PrivateKey
+	helloBytes []byte // serialized client hello, used in transcript hash
 }
 
 // ServerState holds keys derived during a server-side encapsulation; the

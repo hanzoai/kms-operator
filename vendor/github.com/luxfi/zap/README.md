@@ -53,7 +53,7 @@ fmt.Println(root.Bool(16))    // true
 ┌─────────────────────────────────────────────────┐
 │ Header (16 bytes)                               │
 │  ├─ Magic (4 bytes): "ZAP\x00"                  │
-│  ├─ Version (2 bytes): 1                        │
+│  ├─ Version (2 bytes): 1 (legacy) or 2 (current)│
 │  ├─ Flags (2 bytes): compression, etc.          │
 │  ├─ Root Offset (4 bytes): offset to root       │
 │  └─ Size (4 bytes): total message size          │
@@ -270,7 +270,7 @@ Auto-discover peers via mDNS and communicate with ZAP:
 node := zap.NewNode(zap.NodeConfig{
     NodeID:      "node-1",
     ServiceType: "_luxd._tcp",
-    Port:        9651,
+    Port:        zap.DefaultPort, // 9999 — canonical ZAP port
 })
 
 // Handle incoming messages

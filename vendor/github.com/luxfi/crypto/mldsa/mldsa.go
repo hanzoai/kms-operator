@@ -90,6 +90,21 @@ func GetSignatureSize(mode Mode) int {
 	}
 }
 
+// GetPrivateKeySize returns the size of a private key for the given mode.
+// FIPS 204 §4 fixes these at 2560 / 4032 / 4896 bytes for ML-DSA-{44,65,87}.
+func GetPrivateKeySize(mode Mode) int {
+	switch mode {
+	case MLDSA44:
+		return MLDSA44PrivateKeySize
+	case MLDSA65:
+		return MLDSA65PrivateKeySize
+	case MLDSA87:
+		return MLDSA87PrivateKeySize
+	default:
+		return 0
+	}
+}
+
 // GenerateKey generates a new ML-DSA key pair using circl
 func GenerateKey(rand io.Reader, mode Mode) (*PrivateKey, error) {
 	var pubBytes, privBytes []byte
@@ -163,7 +178,37 @@ func (priv *PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerO
 // FIPS 204 Section 5.2: ctx is an optional octet string (0-255 bytes) bound
 // into the signature. Callers SHOULD use a non-nil context to prevent
 // cross-protocol signature replay.
+//
+// Uses the FIPS 204 hedged (randomized) variant — circl reads
+// randomness from crypto/rand internally. The rand parameter on this
+// method is currently unused (kept for crypto.Signer-compatible call
+// sites); callers needing deterministic signatures for KAT vectors or
+// reproducibility MUST use SignCtxDeterministic.
 func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, error) {
+	return priv.signCtx(message, ctx, true)
+}
+
+// SignCtxDeterministic signs a message with domain-separating context
+// using the FIPS 204 §5.2 DETERMINISTIC variant (no randomness, sig
+// is a pure function of (sk, message, ctx)).
+//
+// Use this for:
+//   - KAT vectors that pin AUTH signatures byte-for-byte
+//   - Reproducible test fixtures
+//   - Environments where /dev/urandom is unavailable
+//
+// The deterministic variant is secure under standard ML-DSA security
+// assumptions; the hedged (randomized) variant is preferred for
+// production because it adds defense-in-depth against side-channel
+// leakage of the per-signature randomness. Do not mix the two on the
+// same long-term key in adversarial settings.
+func (priv *PrivateKey) SignCtxDeterministic(message, ctx []byte) ([]byte, error) {
+	return priv.signCtx(message, ctx, false)
+}
+
+// signCtx dispatches by mode; `randomized` selects FIPS 204 hedged
+// (true) vs deterministic (false) signing.
+func (priv *PrivateKey) signCtx(message, ctx []byte, randomized bool) ([]byte, error) {
 	switch priv.mode {
 	case MLDSA44:
 		var sk mldsa44.PrivateKey
@@ -171,7 +216,7 @@ func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, er
 			return nil, err
 		}
 		sig := make([]byte, MLDSA44SignatureSize)
-		if err := mldsa44.SignTo(&sk, message, ctx, true, sig); err != nil {
+		if err := mldsa44.SignTo(&sk, message, ctx, randomized, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil
@@ -182,7 +227,7 @@ func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, er
 			return nil, err
 		}
 		sig := make([]byte, MLDSA65SignatureSize)
-		if err := mldsa65.SignTo(&sk, message, ctx, true, sig); err != nil {
+		if err := mldsa65.SignTo(&sk, message, ctx, randomized, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil
@@ -193,7 +238,7 @@ func (priv *PrivateKey) SignCtx(rand io.Reader, message, ctx []byte) ([]byte, er
 			return nil, err
 		}
 		sig := make([]byte, MLDSA87SignatureSize)
-		if err := mldsa87.SignTo(&sk, message, ctx, true, sig); err != nil {
+		if err := mldsa87.SignTo(&sk, message, ctx, randomized, sig); err != nil {
 			return nil, err
 		}
 		return sig, nil

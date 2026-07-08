@@ -5,14 +5,21 @@ package ids
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 
-	"github.com/luxfi/codec/wrappers"
 	"github.com/luxfi/crypto/cb58"
 	"github.com/luxfi/crypto/hash"
 	"github.com/mr-tron/base58/base58"
+)
+
+const (
+	// uint32Len is the byte length of a big-endian-packed uint32.
+	uint32Len = 4
+	// uint64Len is the byte length of a big-endian-packed uint64.
+	uint64Len = 8
 )
 
 // Sortable is the interface for types that can be compared for ordering.
@@ -137,8 +144,34 @@ func (id *ID) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+// UnmarshalText decodes an unquoted CB58/native ID string. It is the inverse
+// of MarshalText, which returns the unquoted id.String(). Used by Go's
+// encoding/json when ID appears as a map key (json decodes map keys via
+// TextUnmarshaler, not via JSON), as well as by encoding/xml, flag.Value,
+// and any other TextUnmarshaler consumer.
+//
+// Historical note: this previously delegated to UnmarshalJSON, which
+// required the input to be quoted. That broke json.Unmarshal of any
+// map[ids.ID]V because the stdlib passes UNQUOTED keys to UnmarshalText
+// (TextUnmarshaler contract). The asymmetry surfaced as
+// "first and last characters should be quotes" on
+// --chain-aliases-file and --chain-aliases-file-content inputs.
 func (id *ID) UnmarshalText(text []byte) error {
-	return id.UnmarshalJSON(text)
+	str := string(text)
+	if str == nullStr || str == "" {
+		*id = Empty
+		return nil
+	}
+	if nativeID, ok := NativeChainFromString(str); ok {
+		*id = nativeID
+		return nil
+	}
+	bytes, err := cb58.Decode(str)
+	if err != nil {
+		return fmt.Errorf("couldn't decode ID to bytes: %w", err)
+	}
+	*id, err = ToID(bytes)
+	return err
 }
 
 // Prefix this id to create a more selective id. This can be used to store
@@ -146,17 +179,19 @@ func (id *ID) UnmarshalText(text []byte) error {
 // prefix1(id) -> confidence
 // prefix2(id) -> vertex
 // This will return a new id and not modify the original id.
+//
+// Wire format (byte-for-byte equal to the historical
+// codec/wrappers.Packer encoding): prefix0 || prefix1 || ... || id, each
+// prefix big-endian uint64, id raw 32-byte fixed bytes.
 func (id ID) Prefix(prefixes ...uint64) ID {
-	packer := wrappers.Packer{
-		Bytes: make([]byte, len(prefixes)*wrappers.LongLen+IDLen),
-	}
-
+	buf := make([]byte, len(prefixes)*uint64Len+IDLen)
+	off := 0
 	for _, prefix := range prefixes {
-		packer.PackLong(prefix)
+		binary.BigEndian.PutUint64(buf[off:], prefix)
+		off += uint64Len
 	}
-	packer.PackFixedBytes(id[:])
-
-	return hash.ComputeHash256Array(packer.Bytes)
+	copy(buf[off:], id[:])
+	return hash.ComputeHash256Array(buf)
 }
 
 // Append this id with the provided suffixes and re-hash the result. This
@@ -165,17 +200,19 @@ func (id ID) Prefix(prefixes ...uint64) ID {
 // This is used to generate LP-77 validationIDs.
 //
 // Ref: https://github.com/luxfi/LPs/tree/e333b335c34c8692d84259d21bd07b2bb849dc2c/LPs/77-reinventing-subnets#convertsubnettol1tx
+//
+// Wire format (byte-for-byte equal to the historical
+// codec/wrappers.Packer encoding): id || suffix0 || suffix1 || ..., id raw
+// 32-byte fixed bytes, each suffix big-endian uint32.
 func (id ID) Append(suffixes ...uint32) ID {
-	packer := wrappers.Packer{
-		Bytes: make([]byte, IDLen+len(suffixes)*wrappers.IntLen),
-	}
-
-	packer.PackFixedBytes(id[:])
+	buf := make([]byte, IDLen+len(suffixes)*uint32Len)
+	copy(buf, id[:])
+	off := IDLen
 	for _, suffix := range suffixes {
-		packer.PackInt(suffix)
+		binary.BigEndian.PutUint32(buf[off:], suffix)
+		off += uint32Len
 	}
-
-	return hash.ComputeHash256Array(packer.Bytes)
+	return hash.ComputeHash256Array(buf)
 }
 
 // XOR this id and the provided id and return the resulting id.
