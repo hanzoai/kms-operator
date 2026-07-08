@@ -409,7 +409,7 @@ func (r *KMSSecretReconciler) ReconcileKMSSecret(
 	}
 
 	if authDetails.AuthStrategy == "" {
-		logger.Info("No authentication strategy found. Attempting to authenticate")
+		logger.V(1).Info("No authentication strategy found. Attempting to authenticate")
 		var err error
 		authDetails, err = r.handleAuthentication(ctx, *kmsSecret, host, kmsClient)
 		r.SetKMSTokenLoadCondition(ctx, logger, kmsSecret, authDetails.AuthStrategy, err)

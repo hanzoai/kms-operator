@@ -277,7 +277,7 @@ func (r *Reconciler) ensureOperatorIdentity(ctx context.Context) (string, error)
 		return "", fmt.Errorf("derive operator identity (path=%q): %w", r.cfg.OperatorServicePath, err)
 	}
 
-	r.logger.Info("operator service identity ready",
+	r.logger.V(1).Info("operator service identity ready",
 		"mnemonicSource", src,
 		"mnemonicSecret", fmt.Sprintf("%s/%s", r.cfg.OperatorMnemonicRef.Namespace, r.cfg.OperatorMnemonicRef.Name),
 		"servicePath", r.cfg.OperatorServicePath,

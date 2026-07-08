@@ -216,7 +216,7 @@ func (r *KMSPushSecretReconciler) ReconcileKMSPushSecret(
 
 	if authDetails.AuthStrategy == "" {
 		var err error
-		logger.Info("No authentication strategy found. Attempting to authenticate")
+		logger.V(1).Info("No authentication strategy found. Attempting to authenticate")
 		authDetails, err = r.handleAuthentication(ctx, kmsPushSecret, host, kmsClient)
 		r.SetAuthenticatedStatusCondition(ctx, &kmsPushSecret, err)
 		if err != nil {
@@ -358,7 +358,7 @@ func (r *KMSPushSecretReconciler) DeleteManagedSecrets(
 	}
 
 	if authDetails.AuthStrategy == "" {
-		logger.Info("No authentication strategy found. Attempting to authenticate")
+		logger.V(1).Info("No authentication strategy found. Attempting to authenticate")
 		var err error
 		authDetails, err = r.handleAuthentication(ctx, kmsPushSecret, host, kmsClient)
 		r.SetAuthenticatedStatusCondition(ctx, &kmsPushSecret, err)
