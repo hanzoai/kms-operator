@@ -276,7 +276,7 @@ func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(
 		return fmt.Errorf("unable to update Kubernetes secret because [%w]", err)
 	}
 
-	logger.Info("successfully updated managed Kubernetes secret")
+	logger.V(1).Info("successfully updated managed Kubernetes secret")
 	return nil
 }
 
@@ -333,7 +333,7 @@ func (r *KMSSecretReconciler) updateKMSManagedConfigMap(
 		return fmt.Errorf("unable to update Kubernetes config map because [%w]", err)
 	}
 
-	logger.Info("successfully updated managed Kubernetes config map")
+	logger.V(1).Info("successfully updated managed Kubernetes config map")
 	return nil
 }
 
