@@ -1,0 +1,21 @@
+# Canonical CI/CD config for hanzoai/kms-operator — read by BOTH the shared
+# hanzoai/ci reusable workflow (.github/workflows/cicd.yml) AND platform.hanzo.ai
+# (webhook → BuildScheduler → arcd). ONE file, the "one way" build contract.
+#
+# Replaces the deprecated `hanzoai/.github/.github/workflows/docker-build.yml`
+# reference, whose GitHub-side wiring startup-failed and blocked releases.
+#
+# The image is the multi-stage root Dockerfile: it compiles the kubebuilder
+# `manager` binary off the vendored module tree (vendoring is required because
+# github.com/luxfi/kms is private) into a scratch runtime. Entrypoint /manager.
+images:
+  - name: kms-operator
+    context: .
+    dockerfile: Dockerfile
+    repo: ghcr.io/hanzoai/kms-operator
+
+# No `test:` — the shared reusable runs `test:` on a bare arc runner with no Go
+# toolchain, and the manager already builds (and would fail the image) inside the
+# Dockerfile. One gate, one place. Deploy is a raw Deployment in
+# kms-operator-system (not an operator Service CR), so it is rolled out of band
+# by bumping the image tag; no `deploy:` block here.
