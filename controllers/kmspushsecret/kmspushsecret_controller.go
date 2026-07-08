@@ -130,7 +130,7 @@ func (r *KMSPushSecretReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	requeueTime = duration
 
 	if requeueTime != 0 {
-		logger.Info(fmt.Sprintf("Manual re-sync interval set. Interval: %v", requeueTime))
+		logger.V(1).Info(fmt.Sprintf("Manual re-sync interval set. Interval: %v", requeueTime))
 	}
 
 	// Check if the resource is already marked for deletion
@@ -176,7 +176,7 @@ func (r *KMSPushSecretReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			}
 		}
 
-		logger.Info("Using custom CA certificate...")
+		logger.V(1).Info("Using custom CA certificate...")
 	} else {
 		api.API_CA_CERTIFICATE = ""
 	}
@@ -198,12 +198,12 @@ func (r *KMSPushSecretReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Sync again after the specified time
 	if requeueTime != 0 {
-		logger.Info(fmt.Sprintf("Operator will requeue after [%v]", requeueTime))
+		logger.V(1).Info(fmt.Sprintf("Operator will requeue after [%v]", requeueTime))
 		return ctrl.Result{
 			RequeueAfter: requeueTime,
 		}, nil
 	} else {
-		logger.Info("Operator will reconcile on next spec change")
+		logger.V(1).Info("Operator will reconcile on next spec change")
 		return ctrl.Result{}, nil
 	}
 }
