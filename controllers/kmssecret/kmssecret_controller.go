@@ -135,10 +135,10 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if kmsSecretCRD.Spec.ResyncInterval != 0 {
 		requeueTime = time.Second * time.Duration(kmsSecretCRD.Spec.ResyncInterval)
-		logger.Info(fmt.Sprintf("Manual re-sync interval set. Interval: %v", requeueTime))
+		logger.V(1).Info(fmt.Sprintf("Manual re-sync interval set. Interval: %v", requeueTime))
 
 	} else {
-		logger.Info(fmt.Sprintf("Re-sync interval set. Interval: %v", requeueTime))
+		logger.V(1).Info(fmt.Sprintf("Re-sync interval set. Interval: %v", requeueTime))
 	}
 
 	// Check if the resource is already marked for deletion
@@ -188,7 +188,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			}, nil
 		}
 
-		logger.Info("Using custom CA certificate...")
+		logger.V(1).Info("Using custom CA certificate...")
 	} else {
 		api.API_CA_CERTIFICATE = ""
 	}
@@ -214,7 +214,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// Sync again after the specified time
-	logger.Info(fmt.Sprintf("Successfully synced %d secrets. Operator will requeue after [%v]", secretsCount, requeueTime))
+	logger.V(1).Info(fmt.Sprintf("Successfully synced %d secrets. Operator will requeue after [%v]", secretsCount, requeueTime))
 	return ctrl.Result{
 		RequeueAfter: requeueTime,
 	}, nil
