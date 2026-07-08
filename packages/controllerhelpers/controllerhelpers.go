@@ -190,7 +190,7 @@ func ReconcileDeployment(ctx context.Context, client controllerClient.Client, lo
 
 	if deployment.Annotations[annotationKey] == annotationValue &&
 		deployment.Spec.Template.Annotations[annotationKey] == annotationValue {
-		logger.Info(fmt.Sprintf("The [deploymentName=%v] is already using the most up to date managed secrets. No action required.", deployment.ObjectMeta.Name))
+		logger.V(1).Info(fmt.Sprintf("The [deploymentName=%v] is already using the most up to date managed secrets. No action required.", deployment.ObjectMeta.Name))
 		return nil
 	}
 
@@ -215,7 +215,7 @@ func ReconcileDaemonSet(ctx context.Context, client controllerClient.Client, log
 
 	if daemonSet.Annotations[annotationKey] == annotationValue &&
 		daemonSet.Spec.Template.Annotations[annotationKey] == annotationValue {
-		logger.Info(fmt.Sprintf("The [daemonSetName=%v] is already using the most up to date managed secrets. No action required.", daemonSet.ObjectMeta.Name))
+		logger.V(1).Info(fmt.Sprintf("The [daemonSetName=%v] is already using the most up to date managed secrets. No action required.", daemonSet.ObjectMeta.Name))
 		return nil
 	}
 
@@ -240,7 +240,7 @@ func ReconcileStatefulSet(ctx context.Context, client controllerClient.Client, l
 
 	if statefulSet.Annotations[annotationKey] == annotationValue &&
 		statefulSet.Spec.Template.Annotations[annotationKey] == annotationValue {
-		logger.Info(fmt.Sprintf("The [statefulSetName=%v] is already using the most up to date managed secrets. No action required.", statefulSet.ObjectMeta.Name))
+		logger.V(1).Info(fmt.Sprintf("The [statefulSetName=%v] is already using the most up to date managed secrets. No action required.", statefulSet.ObjectMeta.Name))
 		return nil
 	}
 
