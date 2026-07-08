@@ -21,9 +21,13 @@
 //   - Metal (Apple Silicon)
 //   - WebGPU (cross-platform fallback)
 //
-// You can override with environment variable LUX_BACKEND or via API:
+// You can override with environment variable GPU_BACKEND or via API:
 //
 //	session, _ := accel.NewSessionWithBackend(accel.BackendMetal)
+//
+// The deprecated names LUX_BACKEND, LUX_ACCEL_BACKEND, and CRYPTO_BACKEND
+// (when set to a backend name) are read for one transition release with a
+// deprecation log message.
 //
 // # Runtime Backend Selection
 //

@@ -17,6 +17,12 @@ package capi
 // System and homebrew paths for headers
 #cgo CFLAGS: -I/usr/local/include -I/opt/homebrew/include -I${SRCDIR}/../../include
 
+// Fallback to vendored header shipped with this module — works in any
+// fresh-clone / CI environment without luxcpp pre-installed. The vendored
+// header declares the C ABI; the stub.go file provides weak symbols so
+// builds succeed even when libluxaccel is not linked.
+#cgo CFLAGS: -I${SRCDIR}/include
+
 // Fallback to local luxcpp install (relative to this file)
 #cgo CFLAGS: -I${SRCDIR}/../../../../luxcpp/install/include
 
@@ -476,6 +482,52 @@ func DilithiumVerify(session *Session, msg, sig, pk *Tensor) (bool, error) {
 		return false, err
 	}
 	return valid != 0, nil
+}
+
+// SLHDSASignBatch batch-signs SLH-DSA (FIPS 205 / Magnetar) messages.
+// mode encodes the parameter set per c_api.h: 2=SHA2-128f, 3=SHA2-192f,
+// 5=SHA2-256f, 12=SHAKE-128f, 13=SHAKE-192f, 15=SHAKE-256f.
+func SLHDSASignBatch(session *Session, mode int, msgs, sks, sigs *Tensor) error {
+	status := C.lux_slhdsa_sign_batch(session.handle, C.int(mode), msgs.handle, sks.handle, sigs.handle)
+	return statusToError(status)
+}
+
+// SLHDSAVerifyBatch batch-verifies SLH-DSA (FIPS 205 / Magnetar) signatures.
+// mode as for SLHDSASignBatch. The results tensor is populated with one
+// uint8 per signature (1 = valid, 0 = invalid).
+func SLHDSAVerifyBatch(session *Session, mode int, msgs, sigs, pks, results *Tensor) error {
+	status := C.lux_slhdsa_verify_batch(session.handle, C.int(mode), msgs.handle, sigs.handle, pks.handle, results.handle)
+	return statusToError(status)
+}
+
+// MLDSAVerifyBatch batch-verifies ML-DSA / Dilithium (FIPS 204) signatures.
+// mode encodes the parameter set: 2=ML-DSA-44, 3=ML-DSA-65, 5=ML-DSA-87.
+// The results tensor is populated with one uint8 per signature (1 = valid,
+// 0 = invalid).
+//
+// Until the lux-accel C-API exposes lux_mldsa_verify_batch (in development),
+// this returns ErrNotSupported so the Go-side dispatcher falls back to its
+// per-element verify path. The function is wired here so consumers can call
+// it before the substrate ships without breaking the build.
+func MLDSAVerifyBatch(session *Session, mode int, msgs, sigs, pks, results *Tensor) error {
+	_ = session
+	_ = mode
+	_ = msgs
+	_ = sigs
+	_ = pks
+	_ = results
+	return ErrNotSupported
+}
+
+// MLDSASignBatch batch-signs ML-DSA / Dilithium (FIPS 204) messages.
+// mode as for MLDSAVerifyBatch. See doc on MLDSAVerifyBatch for ABI status.
+func MLDSASignBatch(session *Session, mode int, msgs, sks, sigs *Tensor) error {
+	_ = session
+	_ = mode
+	_ = msgs
+	_ = sks
+	_ = sigs
+	return ErrNotSupported
 }
 
 // FHE operations

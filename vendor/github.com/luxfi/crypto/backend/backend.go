@@ -94,30 +94,70 @@ func SetDefault(b Backend) {
 	atomic.StoreUint32(&current, uint32(b))
 }
 
-// Available is reserved for backend probing. Today, Auto and Vanilla are
-// always available; CGo and GPU are reported by build-tagged shims and the
-// runtime resolver.
+// CGoAvailable reports whether the binary was compiled with CGO_ENABLED=1.
+// The answer is a compile-time constant: cgoLinked is set by cgo_yes.go
+// when cgo is on and cgo_no.go when cgo is off.
+func CGoAvailable() bool { return cgoLinked }
+
+// GPUAvailable reports whether the luxfi/accel GPU substrate is reachable
+// in this process. First call lazily initialises accel via gpuhost; the
+// answer is cached afterwards. Returns false unconditionally when the
+// GPU_DISABLE kill switch is set (see disable.go).
+func GPUAvailable() bool {
+	if gpuDisabled {
+		return false
+	}
+	return gpuLinked()
+}
+
+// Available reports whether backend b is currently usable. Auto and Vanilla
+// are always available; CGo requires CGO_ENABLED=1; GPU requires a live
+// accel session with at least one device.
 func Available(b Backend) bool {
 	switch b {
 	case Auto, Vanilla:
 		return true
+	case CGo:
+		return CGoAvailable()
+	case GPU:
+		return GPUAvailable()
 	default:
 		return false
 	}
 }
 
+// Resolved picks the concrete backend for the caller using the real
+// CGo / GPU probes. This is the one-call shortcut for the common pattern:
+//
+//	if backend.Resolved() == backend.GPU {
+//	    // dispatch GPU path
+//	}
+//
+// Equivalent to Resolve(GPUAvailable(), CGoAvailable()).
+func Resolved() Backend { return Resolve(GPUAvailable(), CGoAvailable()) }
+
+// IsGPU reports whether Resolved() picks GPU. Algorithm dispatchers gate
+// their GPU path with this:
+//
+//	if !backend.IsGPU() { return false, nil }
+func IsGPU() bool { return Resolved() == GPU }
+
+// IsCGo reports whether Resolved() picks CGo.
+func IsCGo() bool { return Resolved() == CGo }
+
+// IsVanilla reports whether Resolved() picks Vanilla. Useful for dispatchers
+// whose accelerated path covers both GPU and CGo and only needs to bail out
+// on explicit Vanilla selection (e.g. crypto/hqc batch entrypoints).
+func IsVanilla() bool { return Resolved() == Vanilla }
+
 // Resolve picks a concrete backend for the caller. If Default() is Auto the
 // resolution falls back through GPU → CGo → Vanilla, choosing the first
-// backend reported as available by the supplied probes. probes may be nil;
-// in that case Resolve returns Vanilla for Auto.
+// backend reported as available by the supplied probes.
 //
-// This is the primary entry point used inside algorithm packages:
-//
-//	switch backend.Resolve(gpuOK, cgoOK) {
-//	case backend.GPU:     return keccak256GPU(in)
-//	case backend.CGo:     return keccak256CGo(in)
-//	default:              return keccak256Vanilla(in)
-//	}
+// Prefer Resolved() / IsGPU() / IsCGo() / IsVanilla() — they call this
+// function with the real probes from CGoAvailable() and GPUAvailable().
+// The four-arg form remains exported for callers that already know the
+// answer (tests, custom dispatchers with their own probes).
 func Resolve(gpuAvailable, cgoAvailable bool) Backend {
 	switch d := Default(); d {
 	case Vanilla:
