@@ -99,6 +99,18 @@ func (o *stubLatticeOps) DilithiumVerify(msg, sig, pk *UntypedTensor) (bool, err
 func (o *stubLatticeOps) DilithiumVerifyBatch(msgs, sigs, pks, results *UntypedTensor) error {
 	return ErrNoBackends
 }
+func (o *stubLatticeOps) MLDSAVerifyBatch(mode int, msgs, sigs, pks, results *UntypedTensor) error {
+	return ErrNoBackends
+}
+func (o *stubLatticeOps) MLDSASignBatch(mode int, msgs, sks, sigs *UntypedTensor) error {
+	return ErrNoBackends
+}
+func (o *stubLatticeOps) SLHDSASignBatch(mode int, msgs, sks, sigs *UntypedTensor) error {
+	return ErrNoBackends
+}
+func (o *stubLatticeOps) SLHDSAVerifyBatch(mode int, msgs, sigs, pks, results *UntypedTensor) error {
+	return ErrNoBackends
+}
 func (o *stubLatticeOps) PolynomialNTT(input, output *UntypedTensor, q uint32) error {
 	return ErrNoBackends
 }

@@ -65,3 +65,8 @@ func InitError() error {
 	Init()
 	return initErr
 }
+
+// Diagnostic snapshots live in github.com/luxfi/crypto/backend (Probe()).
+// gpuhost stays narrow: Init / Available / Session / InitError — the
+// substrate primitives. Anything richer is a diagnostic question and
+// belongs in backend, which is the canonical runtime substrate selector.

@@ -5,6 +5,7 @@ package accel
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -130,8 +131,16 @@ var pluginNames = map[BackendType][]string{
 
 // loadPlugins attempts to load backend plugins from standard paths.
 func loadPlugins() {
-	// Check environment variable first
-	if pluginPath := os.Getenv("LUX_PLUGIN_PATH"); pluginPath != "" {
+	// Check environment variable first.
+	// PLUGIN_PATH is canonical; LUX_PLUGIN_PATH is honored for one release.
+	pluginPath := os.Getenv("PLUGIN_PATH")
+	if pluginPath == "" {
+		if v := os.Getenv("LUX_PLUGIN_PATH"); v != "" {
+			log.Println("LUX_PLUGIN_PATH is deprecated; use PLUGIN_PATH")
+			pluginPath = v
+		}
+	}
+	if pluginPath != "" {
 		loadPluginsFromDir(pluginPath)
 	}
 
@@ -182,7 +191,7 @@ type cgoSessionHandle struct {
 
 func newSession(opts ...SessionOption) (*Session, error) {
 	if err := initLibrary(); err != nil {
-		return nil, err
+		return nil, translateCapiError(err)
 	}
 
 	cfg := &sessionConfig{backend: BackendAuto}
@@ -204,7 +213,7 @@ func newSession(opts ...SessionOption) (*Session, error) {
 
 func newSessionWithBackend(backend BackendType, opts ...SessionOption) (*Session, error) {
 	if err := initLibrary(); err != nil {
-		return nil, err
+		return nil, translateCapiError(err)
 	}
 
 	cs, err := capi.CreateSessionWithBackend(int(backend))
@@ -217,7 +226,7 @@ func newSessionWithBackend(backend BackendType, opts ...SessionOption) (*Session
 
 func newSessionWithDevice(backend BackendType, deviceIndex int, opts ...SessionOption) (*Session, error) {
 	if err := initLibrary(); err != nil {
-		return nil, err
+		return nil, translateCapiError(err)
 	}
 
 	cs, err := capi.CreateSessionWithDevice(int(backend), deviceIndex)

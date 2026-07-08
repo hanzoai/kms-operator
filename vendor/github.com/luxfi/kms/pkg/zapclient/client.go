@@ -11,7 +11,7 @@
 //
 // Example:
 //
-//	c, _ := zapclient.Dial(ctx, "kms:9652", "secret/data/onyxplus/dev")
+//	c, _ := zapclient.Dial(ctx, "kms:9652", "secret/data/myorg/dev")
 //	defer c.Close()
 //	v, _ := c.Get(ctx, "SIGNING_KEY_PEM", "dev")
 //
@@ -21,6 +21,7 @@ package zapclient
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
@@ -28,7 +29,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"time"
 
+	"github.com/luxfi/kms/pkg/envelope"
 	kmszap "github.com/luxfi/kms/pkg/zap"
 	"github.com/luxfi/zap"
 )
@@ -69,6 +72,15 @@ type Client struct {
 	// CapMLKEM768 in DialWithConfig; set to 0 in Config.LocalCaps to
 	// force a classical-only path for testing the fallback.
 	localCaps uint16
+
+	// Envelope identity: the consensus-native auth carrier. Every
+	// secret-opcode call signs an envelope (op, request, ts, nonce)
+	// with this signer; the server verifies + authorizes via consensus.
+	//
+	// identityHeader is the public block embedded in every envelope.
+	// signer is the ML-DSA-65 private-key holder.
+	identityHeader envelope.IdentityHeader
+	signer         envelope.Signer
 }
 
 // Config controls client construction.
@@ -97,6 +109,16 @@ type Config struct {
 	// entirely. Reserved for talking to legacy peers that don't speak
 	// OpClientHello. The connection then falls back to plaintext payloads.
 	SkipHandshake bool
+
+	// IdentityHeader is the public block embedded in every envelope.
+	// Required for the secret-opcode surface; absent → the wire path
+	// fails fast at first request. Build it via
+	// envelope.HeaderFromServiceIdentity(*keys.ServiceIdentity).
+	IdentityHeader envelope.IdentityHeader
+	// Signer signs every outbound envelope's canonical digest.
+	// Required for the secret-opcode surface (same as IdentityHeader).
+	// *keys.ServiceIdentity satisfies envelope.Signer directly.
+	Signer envelope.Signer
 }
 
 // Dial brings up a ZAP node, connects to the KMS peer, and returns a ready
@@ -134,7 +156,14 @@ func DialWithConfig(ctx context.Context, cfg Config) (*Client, error) {
 	if !cfg.CapsExplicit {
 		caps = kmszap.CapMLKEM768
 	}
-	c := &Client{node: n, defaultPath: cfg.DefaultPath, log: cfg.Logger, localCaps: caps}
+	c := &Client{
+		node:           n,
+		defaultPath:    cfg.DefaultPath,
+		log:            cfg.Logger,
+		localCaps:      caps,
+		identityHeader: cfg.IdentityHeader,
+		signer:         cfg.Signer,
+	}
 
 	if cfg.PeerAddr != "" {
 		if err := n.ConnectDirect(cfg.PeerAddr); err != nil {
@@ -318,14 +347,36 @@ func (c *Client) DeleteAt(ctx context.Context, path, name, env string) error {
 
 // call is the shared request/response wrapper around zap.Node.Call.
 //
-// Wire format on both directions: opcode(2 LE) || body for the request,
-// status(1 byte) || json for the response, all packed in a ZAP Message via
-// the Builder. When the client has a hybrid session, body is sealed before
-// the opcode prefix is added and the response payload is opened on receipt.
+// Wire format on both directions: opcode(2 LE) || envelope-json for
+// the request, status(1 byte) || json for the response, all packed in
+// a ZAP Message via the Builder. When the client has a hybrid session,
+// the envelope is sealed before the opcode prefix is added and the
+// response payload is opened on receipt.
+//
+// Envelope construction binds the request body, opcode, timestamp,
+// and a fresh per-call nonce into an ML-DSA-65 signature the server
+// verifies before authorization runs. Without an identity wired in
+// Config the wire path fails fast.
 func (c *Client) call(ctx context.Context, op uint16, body []byte) ([]byte, error) {
-	wireBody := body
+	if c.signer == nil || len(c.identityHeader.PublicKey) == 0 {
+		return nil, errors.New("zapclient: no identity wired (Config.IdentityHeader + Signer)")
+	}
+	nonceBytes := make([]byte, 16)
+	if _, err := rand.Read(nonceBytes); err != nil {
+		return nil, fmt.Errorf("zapclient: nonce: %w", err)
+	}
+	nonce := base64.StdEncoding.EncodeToString(nonceBytes)
+	env, err := envelope.Build(c.identityHeader, c.signer, op, body, nonce, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("zapclient: envelope: %w", err)
+	}
+	envBytes, err := json.Marshal(env)
+	if err != nil {
+		return nil, fmt.Errorf("zapclient: marshal envelope: %w", err)
+	}
+	wireBody := envBytes
 	if c.session != nil {
-		sealed, err := c.session.Seal(kmszap.DirClientToServer, body)
+		sealed, err := c.session.Seal(kmszap.DirClientToServer, envBytes)
 		if err != nil {
 			return nil, fmt.Errorf("zapclient: seal: %w", err)
 		}
