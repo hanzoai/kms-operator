@@ -22,6 +22,7 @@ COPY main.go main.go
 COPY api/ api/
 COPY controllers/ controllers/
 COPY packages/ packages/
+COPY internal/ internal/
 
 # Build off the vendored deps; -mod=vendor short-circuits the module
 # resolver so no network calls are made during build.

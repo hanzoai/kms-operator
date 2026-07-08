@@ -233,6 +233,22 @@ func (o *cgoLatticeOps) DilithiumVerifyBatch(msgs, sigs, pks, results *UntypedTe
 	return ErrNotSupported
 }
 
+func (o *cgoLatticeOps) MLDSAVerifyBatch(mode int, msgs, sigs, pks, results *UntypedTensor) error {
+	return capi.MLDSAVerifyBatch(o.session, mode, getCAPITensor(msgs), getCAPITensor(sigs), getCAPITensor(pks), getCAPITensor(results))
+}
+
+func (o *cgoLatticeOps) MLDSASignBatch(mode int, msgs, sks, sigs *UntypedTensor) error {
+	return capi.MLDSASignBatch(o.session, mode, getCAPITensor(msgs), getCAPITensor(sks), getCAPITensor(sigs))
+}
+
+func (o *cgoLatticeOps) SLHDSASignBatch(mode int, msgs, sks, sigs *UntypedTensor) error {
+	return capi.SLHDSASignBatch(o.session, mode, getCAPITensor(msgs), getCAPITensor(sks), getCAPITensor(sigs))
+}
+
+func (o *cgoLatticeOps) SLHDSAVerifyBatch(mode int, msgs, sigs, pks, results *UntypedTensor) error {
+	return capi.SLHDSAVerifyBatch(o.session, mode, getCAPITensor(msgs), getCAPITensor(sigs), getCAPITensor(pks), getCAPITensor(results))
+}
+
 func (o *cgoLatticeOps) PolynomialNTT(input, output *UntypedTensor, q uint32) error {
 	return ErrNotSupported
 }
