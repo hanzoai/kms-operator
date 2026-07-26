@@ -40,17 +40,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
 	"github.com/hanzoai/kms-operator/internal/bootstrap"
 )
 
 // newFakeClient builds a controller-runtime fake client with the core
-// k8s scheme registered. The bootstrap package only manipulates
-// Secrets, so no CRD scheme is needed for these tests.
+// k8s scheme AND the KMSSecret CRD scheme registered. The bootstrap
+// package reads Secrets (mnemonics, authority) and lists KMSSecret CRs
+// (the grant overlay's only source of truth).
 func newFakeClient(t *testing.T, objs ...client.Object) client.Client {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		t.Fatalf("add core scheme: %v", err)
+	}
+	if err := secretsv1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("add secrets scheme: %v", err)
 	}
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
 }

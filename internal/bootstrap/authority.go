@@ -53,31 +53,37 @@ const AuthorityKey = "consensus-authority.json"
 // kmsd's loadConsensusSnapshot (luxfi/kms cmd/kms/consensus.go). The
 // field names match the kmsd consumer byte-for-byte.
 //
-// Scopes is the OPTIONAL least-privilege overlay: it confines each member
-// NodeID of an authority to a secret-path prefix so a single compromised
-// key cannot reach the entire secret tree. Absent (nil) => both authorities
-// flat (unconfined) — the pre-existing role-based posture. The scope is
-// AUTHORITY-side data keyed by the derived NodeID; the operator knows each
-// service's path when it builds the snapshot, so it cannot be spoofed by a
-// caller's envelope. Consumed by kmsd's consensusScopes (byte-for-byte).
+// Scopes is the OPTIONAL least-privilege overlay. It is DATA ONLY at this
+// gate: the kmsd decodes it but no code path enforces on it (enforcement
+// is gate G4). Absent (nil) => no overlay at all, byte-identical to the
+// pre-overlay operator.
+//
+// The overlay is AUTHORITY-side data keyed by the derived NodeID. The
+// operator knows each service's grants because it holds the CRs, so the
+// grants cannot be spoofed by a caller's envelope.
 type Snapshot struct {
 	Validators []string         `json:"validators"`
 	Operators  []string         `json:"operators"`
 	Scopes     *AuthorityScopes `json:"scopes,omitempty"`
 }
 
-// AuthorityScopes carries the per-authority NodeID→path-prefix grants. A
-// non-nil authority map opts that authority into least-privilege scoping (a
-// member absent from the map is DENIED every path — fail closed); a nil map
-// leaves that authority flat. The two authorities scope independently.
+// AuthorityScopes carries the NodeID→grant-set overlay.
 //
-// The inner maps carry NO omitempty: a present-but-empty map ("scoped, zero
-// grants") must survive the JSON round trip as `{}` rather than being
-// dropped to null (which the kmsd reads as flat — fail OPEN). nil => `null`
-// (flat); `{}` => `{}` (scoped, deny all).
+// Deliberately keyed by IDENTITY, not by authority. Membership
+// (validators / operators) answers "who are you"; grants answer "what may
+// you address". Those are orthogonal questions and braiding them forces
+// the read/write authority-placement decision — a separate gate — into
+// the wire shape. One map, one meaning.
+//
+// The map carries NO omitempty: a present-but-empty map ("scoped, zero
+// grants") must survive the JSON round trip as `{}` rather than collapsing
+// to null (which a consumer reads as "no overlay" — fail OPEN). nil =>
+// `null` (no overlay); `{}` => `{}` (overlay present, nothing granted).
 type AuthorityScopes struct {
-	Validators map[string]string `json:"validators"`
-	Operators  map[string]string `json:"operators"`
+	// Identities maps member NodeID → the grant set that identity is
+	// confined to. A NodeID absent from a non-nil map is confined to
+	// nothing.
+	Identities map[string]Grants `json:"identities"`
 }
 
 // MarshalCanonical returns the canonical JSON form of the snapshot:
@@ -94,33 +100,30 @@ func (s Snapshot) MarshalCanonical() ([]byte, error) {
 	return json.Marshal(c)
 }
 
-// canonicalScopes normalizes the scope prefixes (trim whitespace +
-// surrounding slashes) while preserving the nil-vs-empty distinction that
-// carries the flat-vs-scoped signal. Returns nil for a nil input.
+// canonicalScopes normalizes every grant set while preserving the
+// nil-vs-empty distinction that carries the overlay-absent signal.
+// Returns nil for a nil input.
 func canonicalScopes(sc *AuthorityScopes) *AuthorityScopes {
 	if sc == nil {
 		return nil
 	}
-	return &AuthorityScopes{
-		Validators: normalizeScopeMap(sc.Validators),
-		Operators:  normalizeScopeMap(sc.Operators),
-	}
+	return &AuthorityScopes{Identities: normalizeIdentityScopes(sc.Identities)}
 }
 
-// normalizeScopeMap trims each prefix to its canonical "/"-joined form and
-// drops blank keys. nil stays nil (flat); a non-nil map stays non-nil even
-// when empty (scoped, zero grants — fail closed on the consumer).
-func normalizeScopeMap(m map[string]string) map[string]string {
+// normalizeIdentityScopes canonicalizes each identity's grant set and
+// drops blank NodeID keys. nil stays nil (no overlay); a non-nil map stays
+// non-nil even when empty (overlay present, nothing granted).
+func normalizeIdentityScopes(m map[string]Grants) map[string]Grants {
 	if m == nil {
 		return nil
 	}
-	out := make(map[string]string, len(m))
+	out := make(map[string]Grants, len(m))
 	for k, v := range m {
 		k = strings.TrimSpace(k)
 		if k == "" {
 			continue
 		}
-		out[k] = strings.Trim(strings.TrimSpace(v), "/")
+		out[k] = v.canonical()
 	}
 	return out
 }

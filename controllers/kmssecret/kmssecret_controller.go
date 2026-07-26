@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -220,33 +219,17 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}, nil
 }
 
-// resolveIdentityRef returns the mnemonic Secret ref + canonical
-// service path the bootstrap.Reconciler should enrol for cr. Defaults:
+// resolveIdentityRef returns the mnemonic Secret ref + canonical service
+// path the bootstrap.Reconciler should enrol for cr.
 //
-//   - ref.Name = cr.Spec.MnemonicSecretRef.SecretName when set, else
-//     "<crname>-mnemonic".
-//   - ref.Namespace = cr.Spec.MnemonicSecretRef.SecretNamespace when
-//     set, else r.DefaultMnemonicNamespace (typically "hanzo"), else
-//     cr.Namespace.
-//   - servicePath = cr.Spec.ServicePath when set, else "hanzo/<crname>".
+// Delegates to bootstrap.IdentityRefForKMSSecret — the ONE resolver. The
+// authority reconcile pass keys its grant overlay on the same tuple; if
+// these two ever disagreed, the operator would emit grants for a NodeID
+// no service presents and every scoped request would fail closed.
 func (r *KMSSecretReconciler) resolveIdentityRef(cr *secretsv1alpha1.KMSSecret) (bootstrap.MnemonicRef, string) {
-	ref := bootstrap.MnemonicRef{
-		Namespace: cr.Spec.MnemonicSecretRef.SecretNamespace,
-		Name:      cr.Spec.MnemonicSecretRef.SecretName,
-	}
-	if ref.Name == "" {
-		ref.Name = cr.Name + "-mnemonic"
-	}
+	ref, path := bootstrap.IdentityRefForKMSSecret(cr, r.DefaultMnemonicNamespace)
 	if ref.Namespace == "" {
-		if r.DefaultMnemonicNamespace != "" {
-			ref.Namespace = r.DefaultMnemonicNamespace
-		} else {
-			ref.Namespace = cr.Namespace
-		}
-	}
-	path := strings.TrimSpace(cr.Spec.ServicePath)
-	if path == "" {
-		path = "hanzo/" + cr.Name
+		ref.Namespace = cr.Namespace
 	}
 	return ref, path
 }
