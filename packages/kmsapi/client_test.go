@@ -128,7 +128,7 @@ func TestBuildSecretURL_WithPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "https://kms/v1/kms/orgs/lux/secrets/staking/keys/node1.crt?env=mainnet"
+	want := "https://kms/v1/kms/secrets/staking/keys/node1.crt?env=mainnet"
 	if u != want {
 		t.Fatalf("got %q want %q", u, want)
 	}
@@ -139,7 +139,7 @@ func TestBuildSecretURL_RootPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "https://kms/v1/kms/orgs/lux/secrets/x?env=dev"
+	want := "https://kms/v1/kms/secrets/x?env=dev"
 	if u != want {
 		t.Fatalf("got %q want %q", u, want)
 	}
@@ -150,8 +150,9 @@ func TestBuildSecretURL_EscapesOrgEnvSegments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(u, "/orgs/lux%20infra/") {
-		t.Fatalf("org not escaped: %s", u)
+	// The org no longer appears in the URL at all — the token carries it.
+	if strings.Contains(u, "orgs") || strings.Contains(u, "lux") {
+		t.Fatalf("org leaked into the URL: %s", u)
 	}
 	if !strings.Contains(u, "/a%20b/c/") {
 		t.Fatalf("path segments not escaped: %s", u)
@@ -369,7 +370,7 @@ func TestGetSecret_TargetsCanonicalPathAndSendsBearer(t *testing.T) {
 	if resp.Value != "hello" || resp.Version != 7 {
 		t.Fatalf("resp = %+v", resp)
 	}
-	if hit != "GET /v1/kms/orgs/hanzo/secrets/staking/node-key?env=dev" {
+	if hit != "GET /v1/kms/secrets/staking/node-key?env=dev" {
 		t.Fatalf("canonical surface? got %q", hit)
 	}
 	if auth != "Bearer tok-x" {
@@ -421,10 +422,13 @@ func TestCreateSecret_PostsCanonicalBody(t *testing.T) {
 	if ver != 1 {
 		t.Fatalf("version=%d", ver)
 	}
-	if hit != "POST /v1/kms/orgs/hanzo/secrets" {
+	if hit != "POST /v1/kms/secrets" {
 		t.Fatalf("canonical create path? %s", hit)
 	}
-	if got["path"] != "/auth" || got["name"] != "tok" || got["env"] != "dev" || got["value"] != "v" {
+	// The write ships the NORMALIZED coordinate the read resolves — "/auth"
+	// goes over the wire as "auth", closing the split where a leading-slash
+	// path was written at one address and read (never found) at another.
+	if got["path"] != "auth" || got["name"] != "tok" || got["env"] != "dev" || got["value"] != "v" {
 		t.Fatalf("body = %+v", got)
 	}
 }
@@ -453,7 +457,7 @@ func TestUpdateSecret_PatchSetsIfMatchOnCAS(t *testing.T) {
 	if ver != 2 {
 		t.Fatalf("version=%d", ver)
 	}
-	if hit != "PATCH /v1/kms/orgs/hanzo/secrets/p/k" {
+	if hit != "PATCH /v1/kms/secrets/p/k" {
 		t.Fatalf("canonical patch path? %s", hit)
 	}
 	if ifMatch != "1" {
@@ -484,7 +488,7 @@ func TestDeleteSecret_TargetsCanonicalPath(t *testing.T) {
 	if err := c.DeleteSecret(context.Background(), srv.URL, "tok", "hanzo", "dev", "/p", "k"); err != nil {
 		t.Fatal(err)
 	}
-	if hit != "DELETE /v1/kms/orgs/hanzo/secrets/p/k?env=dev" {
+	if hit != "DELETE /v1/kms/secrets/p/k?env=dev" {
 		t.Fatalf("canonical delete path? %s", hit)
 	}
 }

@@ -325,16 +325,22 @@ func (c *Client) CreateSecret(ctx context.Context, host, token, org, env, path, 
 	if ContainsUnsafeControl(value) {
 		return 0, errors.New("kmsapi: secret value contains control bytes — refusing to ship to KMS")
 	}
+	// The WRITE must use the SAME coordinate the read resolves: reads go
+	// through NormaliseScopePath, and shipping the raw spec path here split one
+	// record into two addresses — a leading-slash secretsPath was WRITTEN at
+	// "/x" and then READ (and never found) at "x", while the reconciler
+	// reported the push a success. One normalization, both directions.
 	body, err := json.Marshal(struct {
 		Path  string `json:"path"`
 		Name  string `json:"name"`
 		Env   string `json:"env"`
 		Value string `json:"value"`
-	}{Path: path, Name: name, Env: env, Value: value})
+	}{Path: NormaliseScopePath(path), Name: name, Env: env, Value: value})
 	if err != nil {
 		return 0, fmt.Errorf("kmsapi: encode CreateSecret body: %w", err)
 	}
-	u := NormaliseHost(host) + "/v1/kms/orgs/" + url.PathEscape(org) + "/secrets"
+	_ = org // the token carries it; see buildSecretURL
+	u := NormaliseHost(host) + "/v1/kms/secrets"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return 0, fmt.Errorf("kmsapi: build POST request: %w", err)
@@ -539,8 +545,14 @@ func buildSecretURL(host, org, path, name, env string) (string, error) {
 		rest = escapePath(scope) + "/" + rest
 	}
 	q := url.Values{"env": {env}}
-	return fmt.Sprintf("%s/v1/kms/orgs/%s/secrets/%s?%s",
-		NormaliseHost(host), url.PathEscape(org), rest, q.Encode()), nil
+	// The org rides the TOKEN, never the URL: the bearer minted at
+	// /v1/kms/auth/login carries the org, and both servers (cloud's embedded
+	// KMS and luxfi kms) scope the request to it. A URL that names a tenant is
+	// caller-selectable, which is why the org-addressed shape was removed
+	// server-side. The org parameter still selects WHICH credential logs in.
+	_ = org
+	return fmt.Sprintf("%s/v1/kms/secrets/%s?%s",
+		NormaliseHost(host), rest, q.Encode()), nil
 }
 
 // escapePath URL-escapes each `/`-separated segment but preserves the

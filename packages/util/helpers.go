@@ -15,6 +15,16 @@ func ConvertIntervalToDuration(resyncInterval *string) (time.Duration, error) {
 		return 0, nil
 	}
 
+	// A bare integer is SECONDS. Operators write "300" as naturally as "5m",
+	// and rejecting it made the reconciler log "invalid time unit" once a
+	// minute forever while the CR looked fine.
+	if n, err := strconv.Atoi(*resyncInterval); err == nil {
+		if n < 0 {
+			return 0, fmt.Errorf("negative interval")
+		}
+		return time.Duration(n) * time.Second, nil
+	}
+
 	length := len(*resyncInterval)
 	if length < 2 {
 		return 0, fmt.Errorf("invalid format")
