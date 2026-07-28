@@ -242,3 +242,23 @@ runner — x/{sys,term,text,tools} pinned newer in go.mod than vendored);
 (d) mount `KMS_CONSENSUS_FILE=/etc/kms/consensus-authority.json` (the
 `kms-consensus-authority` Secret) into the kmsd Deployment;
 (e) semver tag → operator CR.
+
+## Binary secret convention: `*.b64` (v0.4.2)
+
+KMS values are JSON strings and the transport fails closed on control
+bytes, so raw binary material (a 32-byte BLS signer key) cannot ride the
+wire verbatim. Convention, enforced in ONE place
+(`packages/util/secrets.go` fetch layer, pinned by
+`TestB64KeysDecodeOnProjection`): a KMS secret named `X.b64` holds the
+base64 of the raw bytes; on projection the operator strips the suffix and
+decodes, so the managed k8s Secret carries key `X` with the exact bytes
+its consumers expect (luxd startup scripts stay untouched). Invalid
+base64 fails the whole reconcile (no partial/garbage projection). First
+consumer: `luxd-staking` sync CRs in `luxfi/universe`
+`k8s/lux-k8s/kms-secrets.yaml` (org `lux`, envs mainnet/testnet/devnet,
+path `/staking`, keys `staker-N.crt`, `staker-N.key`,
+`signer-N.key.b64`). Server-side path note: values must be written with
+`path: "staking"` (NO leading slash) — the store keys (path, name)
+literally and the operator's NormaliseScopePath strips slashes, so a
+value written under `/staking` is only reachable as `%2Fstaking` and the
+operator will 404 on it.

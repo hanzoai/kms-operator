@@ -11,8 +11,10 @@ package util
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hanzoai/kms-operator/api/v1alpha1"
 	"github.com/hanzoai/kms-operator/packages/kmsapi"
@@ -68,9 +70,23 @@ func GetPlainTextSecretsViaMachineIdentity(
 		if err != nil {
 			return nil, fmt.Errorf("fetch secret %q: %w", key, err)
 		}
+		// Binary convention: KMS values are strings and the transport
+		// rejects control bytes, so raw binary material (e.g. a BLS
+		// signer key) is stored base64-encoded under a name ending in
+		// ".b64". On projection the suffix is stripped and the value
+		// decoded, so the managed Secret keeps the exact byte contract
+		// its consumers expect. One transform, one place.
+		name, value := key, resp.Value
+		if stripped, ok := strings.CutSuffix(key, ".b64"); ok {
+			raw, decErr := base64.StdEncoding.DecodeString(strings.TrimSpace(resp.Value))
+			if decErr != nil {
+				return nil, fmt.Errorf("secret %q: value is not valid base64: %w", key, decErr)
+			}
+			name, value = stripped, string(raw)
+		}
 		out = append(out, model.SingleEnvironmentVariable{
-			Key:        key,
-			Value:      resp.Value,
+			Key:        name,
+			Value:      value,
 			Type:       "shared",
 			ID:         "", // canonical surface has no separate ID
 			SecretPath: scope.SecretsPath,
