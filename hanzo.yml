@@ -1,5 +1,5 @@
 # Canonical CI/CD config for hanzoai/kms-operator — read by BOTH the shared
-# hanzoai/ci reusable workflow (.github/workflows/cicd.yml) AND platform.hanzo.ai
+# hanzoai/ci reusable workflow (.hanzo/workflows/cicd.yml) AND platform.hanzo.ai
 # (webhook → BuildScheduler → arcd). ONE file, the "one way" build contract.
 #
 # Replaces the deprecated `hanzoai/.github/.github/workflows/docker-build.yml`
