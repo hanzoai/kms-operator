@@ -1,6 +1,26 @@
 
-# Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/hanzoai/kms-operator:latest
+# Image URL to use all building/pushing image targets.
+#
+# ⛔ This default was `:latest`, and that is not a cosmetic default — the
+# `kubectl-install` target runs `kustomize edit set image controller=$(IMG)`,
+# which REWRITES config/manager/kustomization.yaml. So any `make` run without an
+# explicit IMG= silently un-pinned the checked-in version and wrote a floating
+# tag back into git.
+#
+# That is how it actually played out: commit 9c864a6 ("deploy: pin :latest →
+# semver across image refs") fixed the checked-in values, but left this line, so
+# the next make run could put `:latest` straight back. Meanwhile three clusters
+# — pars, bootnode and adnexus — were installed from a `:latest` build of this
+# manifest and are still on it, on the SECRETS plane. Measured 2026-08-01: pars
+# and adnexus run sha256:ae9242d5 while bootnode runs sha256:05e43c41, a build
+# two days older. Same tag string, three clusters, two different binaries, and
+# nothing in the manifest to reveal it.
+#
+# Deriving from the newest git tag means the default can never be a floating tag
+# and there is no second version constant to drift from the one in `git tag`.
+# Override for a scratch build with `make ... IMG=…` as before.
+VERSION ?= $(shell git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)
+IMG ?= ghcr.io/hanzoai/kms-operator:$(VERSION)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.25.0
 
