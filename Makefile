@@ -82,13 +82,25 @@ kubectl-install: manifests kustomize
 
 ##@ Development
 
+# GOWORK=off on every codegen target.
+#
+# This repo lives under ~/work/hanzo, which carries a go.work that does NOT list
+# it. Go still activates that workspace by proximity, so `paths="./..."` resolves
+# against the workspace and matches nothing:
+#
+#   pattern ./...: directory prefix . does not contain modules listed in
+#                  go.work or their selected dependencies
+#
+# controller-gen prints that above ~40 lines of marker help, so reading the TAIL
+# of the output shows only usage text and it looks like a bad argument or a
+# broken tool. It is neither — the module graph simply excluded this package.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	GOWORK=off $(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	GOWORK=off $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -177,7 +189,15 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.10.0
+# controller-tools tracks a Kubernetes minor. v0.10.0 is from the
+# controller-runtime v0.13 era, four years behind the v0.23.3 /
+# apimachinery v0.35.3 this module actually builds against, and it cannot be
+# installed here at all: `go install ...@v0.10.0` pulls golang.org/x/tools
+# v0.16.1, which fails to compile under Go 1.26 with
+# "invalid array length -delta * delta".
+#
+# v0.20.x is the line that pulls apimachinery v0.35, matching this go.mod.
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize

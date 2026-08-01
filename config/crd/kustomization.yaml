@@ -5,6 +5,14 @@ resources:
   - bases/secrets.lux.network_kmssecrets.yaml
   - bases/secrets.lux.network_kmspushsecrets.yaml
   - bases/secrets.lux.network_clustergenerators.yaml
+  # Password and UUID are generator types (api/v1alpha1/generators.go), consumed
+  # by a KMSSecret's generatorRef rather than reconciled by a controller of their
+  # own — which is presumably why they were never listed. But a CRD that is not
+  # installed is a KMSSecret that fails at admission, and every cluster in the
+  # estate already HAS these two installed, so the install manifest was
+  # describing a narrower operator than the one actually deployed.
+  - bases/secrets.lux.network_passwords.yaml
+  - bases/secrets.lux.network_uuids.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

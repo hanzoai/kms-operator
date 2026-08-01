@@ -2,13 +2,13 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: manager-role
 rules:
 - apiGroups:
   - ""
   resources:
   - configmaps
+  - secrets
   verbs:
   - create
   - delete
@@ -23,17 +23,6 @@ rules:
   verbs:
   - get
   - list
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -60,15 +49,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
   - authentication.k8s.io
   resources:
   - tokenreviews
@@ -78,43 +58,7 @@ rules:
   - secrets.lux.network
   resources:
   - clustergenerators
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - secrets.lux.network
-  resources:
   - kmspushsecrets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - secrets.lux.network
-  resources:
-  - kmspushsecrets/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - secrets.lux.network
-  resources:
-  - kmspushsecrets/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - secrets.lux.network
-  resources:
   - kmssecrets
   verbs:
   - create
@@ -127,12 +71,14 @@ rules:
 - apiGroups:
   - secrets.lux.network
   resources:
+  - kmspushsecrets/finalizers
   - kmssecrets/finalizers
   verbs:
   - update
 - apiGroups:
   - secrets.lux.network
   resources:
+  - kmspushsecrets/status
   - kmssecrets/status
   verbs:
   - get
