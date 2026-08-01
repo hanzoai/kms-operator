@@ -30,12 +30,12 @@ import (
 	"testing"
 	"time"
 
+	logr "github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	logr "github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -65,7 +65,11 @@ func newFakeClient(t *testing.T, objs ...client.Object) client.Client {
 func newLuxdStub(t *testing.T, nodeIDs []string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/ext/bc/P" {
+		// Reference the CONSTANT, never a literal. This stub used to hardcode
+		// "/ext/bc/P" — the path production could not reach — so the suite passed
+		// while every real reconcile 404'd and kms-consensus-authority went stale
+		// from 2026-03 on. A stub that pins the wrong route tests nothing.
+		if r.URL.Path != bootstrap.PChainPath {
 			http.NotFound(w, r)
 			return
 		}

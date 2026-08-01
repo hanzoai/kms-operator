@@ -46,9 +46,24 @@ import (
 )
 
 // DefaultLuxdRPCURL is the in-cluster default for the hanzo-side
-// operator. Override at boot via LUXD_RPC_URL. The path component
-// `/ext/bc/P` is appended automatically.
-const DefaultLuxdRPCURL = "http://luxd-headless.lux-mainnet.svc.cluster.local:9650"
+// operator. Override at boot via LUXD_RPC_URL. PChainPath is appended
+// automatically.
+//
+// Port 9630, not 9650: `svc/luxd-headless` in lux-mainnet publishes
+// http:9630 and staking:9631. 9650 is lux-DEVNET's http port, so the
+// previous default could never connect on mainnet — every reconcile
+// logged "luxd unreachable" and kms-consensus-authority was left
+// untouched from 2026-03 onward.
+const DefaultLuxdRPCURL = "http://luxd-headless.lux-mainnet.svc.cluster.local:9630"
+
+// PChainPath is luxd's P-Chain JSON-RPC route.
+//
+// NOT "/ext/bc/P". This luxd is /v1-only — every /ext path returns 404
+// (verified live: /ext/bc/P -> 404, /v1/bc/P -> 200 with the validator
+// set). A 404 here is silent: GetCurrentValidators fails, the authority
+// snapshot is never refreshed, and the only symptom is a 401 on an
+// unrelated KMSSecret.
+const PChainPath = "/v1/bc/P"
 
 // LuxdClient queries a luxd node's Platform Chain RPC.
 //
@@ -106,7 +121,7 @@ type rpcResponse struct {
 // (e.g. "NodeID-abc…") and consumed verbatim by kmsd's
 // ids.NodeIDFromString.
 func (l *LuxdClient) GetCurrentValidators(ctx context.Context) ([]string, error) {
-	url := l.BaseURL + "/ext/bc/P"
+	url := l.BaseURL + PChainPath
 	reqBody := rpcRequest{
 		JSONRPC: "2.0",
 		ID:      1,
