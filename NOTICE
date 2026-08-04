@@ -1,6 +1,16 @@
 kms-operator
 Copyright (c) 2026 Hanzo AI, Inc.
 
-This product includes software from Infisical (https://github.com/infisical/infisical), licensed under the MIT License:
+This product includes software from Infisical
+(https://github.com/Infisical/infisical), whose Kubernetes operator lived in
+that repository as `k8-operator/` (it carried no licence file of its own and was
+governed by the repository root licence, reproduced verbatim in LICENSE):
 
     Copyright (c) 2022 Infisical Inc.
+
+Infisical is distributed under MIT Expat with an "ee/" enterprise carve-out;
+content under any "ee/" directory is licensed by that directory's own LICENSE
+and is not covered by the MIT grant.
+
+Hanzo branding (product name, CRD group, image names, documentation) is Hanzo's
+own and is not part of the upstream work.
