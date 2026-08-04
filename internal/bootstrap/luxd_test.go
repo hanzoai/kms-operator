@@ -13,7 +13,7 @@ import (
 
 // TestGetCurrentValidators_UsesV1PChainPath pins the ROUTE, not just the constant.
 //
-// luxd is /v1-only: /ext/bc/P returns 404 and /v1/bc/P returns the validator set
+// luxd is /v1-only: /v1/bc/P returns 404 and /v1/bc/P returns the validator set
 // (verified against lux-mainnet). A 404 here is silent — GetCurrentValidators fails,
 // the authority snapshot is never refreshed, and the only operator-visible symptom is
 // a 401 "invalid credentials" on unrelated KMSSecret resources. lux-k8s sat that way

@@ -58,8 +58,8 @@ const DefaultLuxdRPCURL = "http://luxd-headless.lux-mainnet.svc.cluster.local:96
 
 // PChainPath is luxd's P-Chain JSON-RPC route.
 //
-// NOT "/ext/bc/P". This luxd is /v1-only — every /ext path returns 404
-// (verified live: /ext/bc/P -> 404, /v1/bc/P -> 200 with the validator
+// NOT "/v1/bc/P". This luxd is /v1-only — every /ext path returns 404
+// (verified live: /v1/bc/P -> 404, /v1/bc/P -> 200 with the validator
 // set). A 404 here is silent: GetCurrentValidators fails, the authority
 // snapshot is never refreshed, and the only symptom is a 401 on an
 // unrelated KMSSecret.

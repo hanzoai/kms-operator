@@ -66,7 +66,7 @@ func newLuxdStub(t *testing.T, nodeIDs []string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Reference the CONSTANT, never a literal. This stub used to hardcode
-		// "/ext/bc/P" — the path production could not reach — so the suite passed
+		// "/v1/bc/P" — the path production could not reach — so the suite passed
 		// while every real reconcile 404'd and kms-consensus-authority went stale
 		// from 2026-03 on. A stub that pins the wrong route tests nothing.
 		if r.URL.Path != bootstrap.PChainPath {
