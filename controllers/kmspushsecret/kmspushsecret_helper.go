@@ -31,7 +31,7 @@ import (
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/api"
 	"github.com/hanzoai/kms-operator/packages/constants"
 	generatorUtil "github.com/hanzoai/kms-operator/packages/generator"
@@ -43,7 +43,7 @@ import (
 
 func (r *KMSPushSecretReconciler) handleAuthentication(
 	ctx context.Context,
-	kmsSecret v1alpha1.KMSPushSecret,
+	kmsSecret secretsv1.KMSPushSecret,
 	host string,
 	kmsClient kmsapi.Transport,
 ) (util.AuthenticationDetails, error) {
@@ -66,7 +66,7 @@ func (r *KMSPushSecretReconciler) handleAuthentication(
 
 func (r *KMSPushSecretReconciler) getKMSCaCertificateFromKubeSecret(
 	ctx context.Context,
-	kmsSecret v1alpha1.KMSPushSecret,
+	kmsSecret secretsv1.KMSPushSecret,
 ) (string, error) {
 	caCertificateFromKubeSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
 		Namespace: kmsSecret.Spec.TLS.CaRef.SecretNamespace,
@@ -83,7 +83,7 @@ func (r *KMSPushSecretReconciler) getKMSCaCertificateFromKubeSecret(
 	return string(caCertificateFromKubeSecret.Data[kmsSecret.Spec.TLS.CaRef.SecretKey]), nil
 }
 
-func (r *KMSPushSecretReconciler) getResourceVariables(kmsPushSecret v1alpha1.KMSPushSecret) util.ResourceVariables {
+func (r *KMSPushSecretReconciler) getResourceVariables(kmsPushSecret secretsv1.KMSPushSecret) util.ResourceVariables {
 	if rv, ok := kmsPushSecretResourceVariablesMap[string(kmsPushSecret.UID)]; ok {
 		return rv
 	}
@@ -104,11 +104,11 @@ func (r *KMSPushSecretReconciler) getResourceVariables(kmsPushSecret v1alpha1.KM
 	return rv
 }
 
-func (r *KMSPushSecretReconciler) updateResourceVariables(kmsPushSecret v1alpha1.KMSPushSecret, resourceVariables util.ResourceVariables) {
+func (r *KMSPushSecretReconciler) updateResourceVariables(kmsPushSecret secretsv1.KMSPushSecret, resourceVariables util.ResourceVariables) {
 	kmsPushSecretResourceVariablesMap[string(kmsPushSecret.UID)] = resourceVariables
 }
 
-func (r *KMSPushSecretReconciler) processGenerators(ctx context.Context, kmsPushSecret v1alpha1.KMSPushSecret) (map[string]string, error) {
+func (r *KMSPushSecretReconciler) processGenerators(ctx context.Context, kmsPushSecret secretsv1.KMSPushSecret) (map[string]string, error) {
 
 	processedSecrets := make(map[string]string)
 
@@ -119,12 +119,12 @@ func (r *KMSPushSecretReconciler) processGenerators(ctx context.Context, kmsPush
 	for _, generator := range kmsPushSecret.Spec.Push.Generators {
 		generatorRef := generator.GeneratorRef
 
-		clusterGenerator := &v1alpha1.ClusterGenerator{}
+		clusterGenerator := &secretsv1.ClusterGenerator{}
 		err := r.Client.Get(ctx, types.NamespacedName{Name: generatorRef.Name}, clusterGenerator)
 		if err != nil {
 			return nil, fmt.Errorf("unable to get ClusterGenerator resource [err=%s]", err)
 		}
-		if generatorRef.Kind == v1alpha1.GeneratorKindPassword {
+		if generatorRef.Kind == secretsv1.GeneratorKindPassword {
 			if clusterGenerator.Spec.Generator.PasswordSpec == nil {
 				return nil, fmt.Errorf("password spec is not defined in the ClusterGenerator resource")
 			}
@@ -135,7 +135,7 @@ func (r *KMSPushSecretReconciler) processGenerators(ctx context.Context, kmsPush
 			processedSecrets[generator.DestinationSecretName] = password
 		}
 
-		if generatorRef.Kind == v1alpha1.GeneratorKindUUID {
+		if generatorRef.Kind == secretsv1.GeneratorKindUUID {
 			uuid, err := generatorUtil.GeneratorUUID()
 			if err != nil {
 				return nil, fmt.Errorf("unable to generate UUID [err=%s]", err)
@@ -148,9 +148,9 @@ func (r *KMSPushSecretReconciler) processGenerators(ctx context.Context, kmsPush
 }
 
 func (r *KMSPushSecretReconciler) processTemplatedSecrets(
-	kmsPushSecret v1alpha1.KMSPushSecret,
+	kmsPushSecret secretsv1.KMSPushSecret,
 	kubePushSecret *corev1.Secret,
-	destination v1alpha1.KMSPushSecretDestination,
+	destination secretsv1.KMSPushSecretDestination,
 ) (map[string]string, error) {
 
 	processedSecrets := make(map[string]string)
@@ -202,7 +202,7 @@ func (r *KMSPushSecretReconciler) processTemplatedSecrets(
 func (r *KMSPushSecretReconciler) ReconcileKMSPushSecret(
 	ctx context.Context,
 	logger logr.Logger,
-	kmsPushSecret v1alpha1.KMSPushSecret,
+	kmsPushSecret secretsv1.KMSPushSecret,
 ) error {
 
 	resourceVariables := r.getResourceVariables(kmsPushSecret)
@@ -342,7 +342,7 @@ func (r *KMSPushSecretReconciler) ReconcileKMSPushSecret(
 func (r *KMSPushSecretReconciler) DeleteManagedSecrets(
 	ctx context.Context,
 	logger logr.Logger,
-	kmsPushSecret v1alpha1.KMSPushSecret,
+	kmsPushSecret secretsv1.KMSPushSecret,
 ) error {
 	if kmsPushSecret.Spec.DeletionPolicy != string(constants.PUSH_SECRET_DELETE_POLICY_ENABLED) {
 		return nil

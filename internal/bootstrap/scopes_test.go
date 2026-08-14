@@ -16,7 +16,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 )
 
 // prodRow is one real (CR name, servicePath, org, env, secretsPath) tuple
@@ -107,7 +107,7 @@ func TestGrantsFromKMSSecret_RootPathIsALegitimateGrant(t *testing.T) {
 // carries eight auth blocks as VALUES, so the seven a CR does not use are
 // present-but-zero. They must not each contribute a phantom grant.
 func TestGrantsFromKMSSecret_UnsetAuthBlocksProduceNoGrants(t *testing.T) {
-	cr := &secretsv1alpha1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "empty", Namespace: "hanzo"}}
+	cr := &secretsv1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "empty", Namespace: "hanzo"}}
 	if got := GrantsFromKMSSecret(cr); len(got) != 0 {
 		t.Fatalf("a CR with no auth block produced %d grants: %v", len(got), got)
 	}
@@ -288,7 +288,7 @@ func TestSnapshot_Equal_AccountsForScopes(t *testing.T) {
 // per-CR hook and the authority pass depend on. Drift here emits grants
 // keyed to a NodeID no service presents.
 func TestIdentityRefForKMSSecret_Defaults(t *testing.T) {
-	cr := &secretsv1alpha1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "enso-secrets", Namespace: "hanzo-apps"}}
+	cr := &secretsv1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "enso-secrets", Namespace: "hanzo-apps"}}
 	ref, path := IdentityRefForKMSSecret(cr, "hanzo")
 	if ref.Name != "enso-secrets-mnemonic" || ref.Namespace != "hanzo" {
 		t.Fatalf("default ref = %+v, want hanzo/enso-secrets-mnemonic", ref)
@@ -310,11 +310,11 @@ func TestIdentityRefForKMSSecret_Defaults(t *testing.T) {
 }
 
 // crFor builds a KMSSecret CR matching one production fixture row.
-func crFor(row prodRow) *secretsv1alpha1.KMSSecret {
-	cr := &secretsv1alpha1.KMSSecret{
+func crFor(row prodRow) *secretsv1.KMSSecret {
+	cr := &secretsv1.KMSSecret{
 		ObjectMeta: metav1.ObjectMeta{Name: row.cr, Namespace: "hanzo"},
 	}
-	cr.Spec.Authentication.UniversalAuth.SecretsScope = secretsv1alpha1.MachineIdentityScopeInWorkspace{
+	cr.Spec.Authentication.UniversalAuth.SecretsScope = secretsv1.MachineIdentityScopeInWorkspace{
 		ProjectSlug: row.org,
 		EnvSlug:     row.env,
 		SecretsPath: row.secretsPath,

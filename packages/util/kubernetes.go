@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/model"
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,7 +38,7 @@ func GetKubeConfigMapByNamespacedName(ctx context.Context, reconcilerClient clie
 	return kubeConfigMap, err
 }
 
-func GetKMSUniversalAuthFromKubeSecret(ctx context.Context, reconcilerClient client.Client, universalAuthRef v1alpha1.KubeSecretReference) (machineIdentityDetails model.MachineIdentityDetails, err error) {
+func GetKMSUniversalAuthFromKubeSecret(ctx context.Context, reconcilerClient client.Client, universalAuthRef secretsv1.KubeSecretReference) (machineIdentityDetails model.MachineIdentityDetails, err error) {
 
 	universalAuthCredsFromKubeSecret, err := GetKubeSecretByNamespacedName(ctx, reconcilerClient, types.NamespacedName{
 		Namespace: universalAuthRef.SecretNamespace,

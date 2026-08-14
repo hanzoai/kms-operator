@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/util"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *KMSSecretReconciler) SetReadyToSyncSecretsConditions(ctx context.Context, logger logr.Logger, kmsSecret *v1alpha1.KMSSecret, secretsCount int, errorToConditionOn error) {
+func (r *KMSSecretReconciler) SetReadyToSyncSecretsConditions(ctx context.Context, logger logr.Logger, kmsSecret *secretsv1.KMSSecret, secretsCount int, errorToConditionOn error) {
 	if kmsSecret.Status.Conditions == nil {
 		kmsSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -45,7 +45,7 @@ func (r *KMSSecretReconciler) SetReadyToSyncSecretsConditions(ctx context.Contex
 	}
 }
 
-func (r *KMSSecretReconciler) SetKMSTokenLoadCondition(ctx context.Context, logger logr.Logger, kmsSecret *v1alpha1.KMSSecret, authStrategy util.AuthStrategyType, errorToConditionOn error) {
+func (r *KMSSecretReconciler) SetKMSTokenLoadCondition(ctx context.Context, logger logr.Logger, kmsSecret *secretsv1.KMSSecret, authStrategy util.AuthStrategyType, errorToConditionOn error) {
 	if kmsSecret.Status.Conditions == nil {
 		kmsSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -72,7 +72,7 @@ func (r *KMSSecretReconciler) SetKMSTokenLoadCondition(ctx context.Context, logg
 	}
 }
 
-func (r *KMSSecretReconciler) SetKMSAutoRedeploymentReady(ctx context.Context, logger logr.Logger, kmsSecret *v1alpha1.KMSSecret, numDeployments int, errorToConditionOn error) {
+func (r *KMSSecretReconciler) SetKMSAutoRedeploymentReady(ctx context.Context, logger logr.Logger, kmsSecret *secretsv1.KMSSecret, numDeployments int, errorToConditionOn error) {
 	if kmsSecret.Status.Conditions == nil {
 		kmsSecret.Status.Conditions = []metav1.Condition{}
 	}

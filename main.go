@@ -18,7 +18,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	kmsPushSecretController "github.com/hanzoai/kms-operator/controllers/kmspushsecret"
 	kmsSecretController "github.com/hanzoai/kms-operator/controllers/kmssecret"
 	"github.com/hanzoai/kms-operator/internal/bootstrap"
@@ -47,7 +47,7 @@ func (apiWarningToDebug) HandleWarningHeader(code int, _ string, message string)
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(secretsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(secretsv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 

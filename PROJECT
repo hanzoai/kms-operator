@@ -15,8 +15,8 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSSecret
-    path: github.com/hanzoai/kms-operator/api/v1alpha1
-    version: v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1
+    version: v1
   - api:
       crdVersion: v1
       namespaced: true
@@ -24,8 +24,8 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSPushSecretSecret
-    path: github.com/hanzoai/kms-operator/api/v1alpha1
-    version: v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1
+    version: v1
   - api:
       crdVersion: v1
       namespaced: true
@@ -33,6 +33,6 @@ resources:
     domain: lux.network
     group: secrets
     kind: KMSDynamicSecret
-    path: github.com/hanzoai/kms-operator/api/v1alpha1
-    version: v1alpha1
+    path: github.com/hanzoai/kms-operator/api/v1
+    version: v1
 version: "3"

@@ -16,7 +16,7 @@ import (
 	defaultErrors "errors"
 
 	"github.com/go-logr/logr"
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/internal/bootstrap"
 	"github.com/hanzoai/kms-operator/packages/api"
 	controllerhelpers "github.com/hanzoai/kms-operator/packages/controllerhelpers"
@@ -78,7 +78,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	logger := r.GetLogger(req)
 
-	var kmsSecretCRD secretsv1alpha1.KMSSecret
+	var kmsSecretCRD secretsv1.KMSSecret
 	requeueTime := time.Minute // seconds
 
 	err := r.Get(ctx, req.NamespacedName, &kmsSecretCRD)
@@ -109,7 +109,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		logger.V(1).Info("\n\n\nThe field `managedSecretReference` will be deprecated in the near future, please use `managedKubeSecretReferences` instead.\n\nRefer to the documentation for more information: https://lux.network/docs/integrations/platforms/kubernetes/kms-secret-crd\n\n\n")
 
 		if managedKubeSecretReferences == nil {
-			managedKubeSecretReferences = []secretsv1alpha1.ManagedKubeSecretConfig{}
+			managedKubeSecretReferences = []secretsv1.ManagedKubeSecretConfig{}
 		}
 		managedKubeSecretReferences = append(managedKubeSecretReferences, kmsSecretCRD.Spec.ManagedSecretReference)
 	}
@@ -226,7 +226,7 @@ func (r *KMSSecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // authority reconcile pass keys its grant overlay on the same tuple; if
 // these two ever disagreed, the operator would emit grants for a NodeID
 // no service presents and every scoped request would fail closed.
-func (r *KMSSecretReconciler) resolveIdentityRef(cr *secretsv1alpha1.KMSSecret) (bootstrap.MnemonicRef, string) {
+func (r *KMSSecretReconciler) resolveIdentityRef(cr *secretsv1.KMSSecret) (bootstrap.MnemonicRef, string) {
 	ref, path := bootstrap.IdentityRefForKMSSecret(cr, r.DefaultMnemonicNamespace)
 	if ref.Namespace == "" {
 		ref.Namespace = cr.Namespace
@@ -236,7 +236,7 @@ func (r *KMSSecretReconciler) resolveIdentityRef(cr *secretsv1alpha1.KMSSecret) 
 
 func (r *KMSSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&secretsv1alpha1.KMSSecret{}, builder.WithPredicates(predicate.Funcs{
+		For(&secretsv1.KMSSecret{}, builder.WithPredicates(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
 				if e.ObjectOld.GetGeneration() == e.ObjectNew.GetGeneration() {
 					return false // Skip reconciliation for status-only changes

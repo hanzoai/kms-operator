@@ -1,4 +1,4 @@
-package v1alpha1
+package v1
 
 type GenericKMSAuthentication struct {
 	// +kubebuilder:validation:Optional

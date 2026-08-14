@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (r *KMSPushSecretReconciler) SetReconcileStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, err error) error {
+func (r *KMSPushSecretReconciler) SetReconcileStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, err error) error {
 
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
@@ -35,7 +35,7 @@ func (r *KMSPushSecretReconciler) SetReconcileStatusCondition(ctx context.Contex
 
 }
 
-func (r *KMSPushSecretReconciler) SetFailedToReplaceSecretsStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, failMessage string) error {
+func (r *KMSPushSecretReconciler) SetFailedToReplaceSecretsStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, failMessage string) error {
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -59,7 +59,7 @@ func (r *KMSPushSecretReconciler) SetFailedToReplaceSecretsStatusCondition(ctx c
 	return r.Client.Status().Update(ctx, kmsPushSecret)
 }
 
-func (r *KMSPushSecretReconciler) SetFailedToCreateSecretsStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, failMessage string) error {
+func (r *KMSPushSecretReconciler) SetFailedToCreateSecretsStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, failMessage string) error {
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -83,7 +83,7 @@ func (r *KMSPushSecretReconciler) SetFailedToCreateSecretsStatusCondition(ctx co
 	return r.Client.Status().Update(ctx, kmsPushSecret)
 }
 
-func (r *KMSPushSecretReconciler) SetFailedToUpdateSecretsStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, failMessage string) error {
+func (r *KMSPushSecretReconciler) SetFailedToUpdateSecretsStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, failMessage string) error {
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -107,7 +107,7 @@ func (r *KMSPushSecretReconciler) SetFailedToUpdateSecretsStatusCondition(ctx co
 	return r.Client.Status().Update(ctx, kmsPushSecret)
 }
 
-func (r *KMSPushSecretReconciler) SetFailedToDeleteSecretsStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, failMessage string) error {
+func (r *KMSPushSecretReconciler) SetFailedToDeleteSecretsStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, failMessage string) error {
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
 	}
@@ -131,7 +131,7 @@ func (r *KMSPushSecretReconciler) SetFailedToDeleteSecretsStatusCondition(ctx co
 	return r.Client.Status().Update(ctx, kmsPushSecret)
 }
 
-func (r *KMSPushSecretReconciler) SetAuthenticatedStatusCondition(ctx context.Context, kmsPushSecret *v1alpha1.KMSPushSecret, errorToConditionOn error) error {
+func (r *KMSPushSecretReconciler) SetAuthenticatedStatusCondition(ctx context.Context, kmsPushSecret *secretsv1.KMSPushSecret, errorToConditionOn error) error {
 	if kmsPushSecret.Status.Conditions == nil {
 		kmsPushSecret.Status.Conditions = []metav1.Condition{}
 	}

@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/kmsapi"
 	corev1 "k8s.io/api/core/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -66,7 +66,7 @@ type AuthenticationDetails struct {
 	AuthStrategy         AuthStrategyType
 	BearerToken          string
 	Host                 string
-	MachineIdentityScope v1alpha1.MachineIdentityScopeInWorkspace
+	MachineIdentityScope secretsv1.MachineIdentityScopeInWorkspace
 	SecretType           SecretCrdType
 }
 
@@ -103,20 +103,20 @@ func HandleUniversalAuth(
 ) (AuthenticationDetails, error) {
 
 	var (
-		credRef v1alpha1.KubeSecretReference
-		scope   v1alpha1.MachineIdentityScopeInWorkspace
+		credRef secretsv1.KubeSecretReference
+		scope   secretsv1.MachineIdentityScopeInWorkspace
 	)
 
 	switch secretCrd.Type {
 	case SecretCrd.KMS_SECRET:
-		kmsSecret, ok := secretCrd.Secret.(v1alpha1.KMSSecret)
+		kmsSecret, ok := secretCrd.Secret.(secretsv1.KMSSecret)
 		if !ok {
 			return AuthenticationDetails{}, errors.New("HandleUniversalAuth: not a KMSSecret")
 		}
 		credRef = kmsSecret.Spec.Authentication.UniversalAuth.CredentialsRef
 		scope = kmsSecret.Spec.Authentication.UniversalAuth.SecretsScope
 	case SecretCrd.KMS_PUSH_SECRET:
-		kmsPushSecret, ok := secretCrd.Secret.(v1alpha1.KMSPushSecret)
+		kmsPushSecret, ok := secretCrd.Secret.(secretsv1.KMSPushSecret)
 		if !ok {
 			return AuthenticationDetails{}, errors.New("HandleUniversalAuth: not a KMSPushSecret")
 		}
@@ -184,11 +184,11 @@ func HandleUniversalAuth(
 func crNamespace(secretCrd SecretAuthInput) string {
 	switch secretCrd.Type {
 	case SecretCrd.KMS_SECRET:
-		if v, ok := secretCrd.Secret.(v1alpha1.KMSSecret); ok {
+		if v, ok := secretCrd.Secret.(secretsv1.KMSSecret); ok {
 			return v.Namespace
 		}
 	case SecretCrd.KMS_PUSH_SECRET:
-		if v, ok := secretCrd.Secret.(v1alpha1.KMSPushSecret); ok {
+		if v, ok := secretCrd.Secret.(secretsv1.KMSPushSecret); ok {
 			return v.Namespace
 		}
 	}

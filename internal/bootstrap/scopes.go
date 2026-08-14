@@ -54,7 +54,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 )
 
 // Grant is ONE exact secret address a service identity may reach.
@@ -164,7 +164,7 @@ type IdentityKey struct {
 //   - ref.Namespace = spec.mnemonicSecretRef.secretNamespace, else
 //     defaultMnemonicNS, else cr.Namespace
 //   - servicePath   = spec.servicePath, else "hanzo/<crname>"
-func IdentityRefForKMSSecret(cr *secretsv1alpha1.KMSSecret, defaultMnemonicNS string) (MnemonicRef, string) {
+func IdentityRefForKMSSecret(cr *secretsv1.KMSSecret, defaultMnemonicNS string) (MnemonicRef, string) {
 	ref := MnemonicRef{
 		Namespace: strings.TrimSpace(cr.Spec.MnemonicSecretRef.SecretNamespace),
 		Name:      strings.TrimSpace(cr.Spec.MnemonicSecretRef.SecretName),
@@ -189,12 +189,12 @@ func IdentityRefForKMSSecret(cr *secretsv1alpha1.KMSSecret, defaultMnemonicNS st
 // GrantsFromKMSSecret returns every grant a single CR confers. A CR may
 // carry more than one authentication block; each contributes its own
 // secretsScope, so the per-CR result is already a set.
-func GrantsFromKMSSecret(cr *secretsv1alpha1.KMSSecret) []Grant {
+func GrantsFromKMSSecret(cr *secretsv1.KMSSecret) []Grant {
 	a := cr.Spec.Authentication
 	out := make([]Grant, 0, 4)
 
 	// Machine-identity auth methods — the shape carrying projectSlug.
-	for _, s := range []secretsv1alpha1.MachineIdentityScopeInWorkspace{
+	for _, s := range []secretsv1.MachineIdentityScopeInWorkspace{
 		a.UniversalAuth.SecretsScope,
 		a.KubernetesAuth.SecretsScope,
 		a.AwsIamAuth.SecretsScope,
@@ -241,7 +241,7 @@ func grantOf(org, env, path string) (Grant, bool) {
 // (mnemonic, servicePath) are one identity presenting one NodeID, and
 // that NodeID must carry BOTH grants or the second CR's fetch is denied.
 func (r *Reconciler) collectGrants(ctx context.Context) (map[IdentityKey]Grants, error) {
-	var list secretsv1alpha1.KMSSecretList
+	var list secretsv1.KMSSecretList
 	if err := r.client.List(ctx, &list); err != nil {
 		return nil, fmt.Errorf("list kmssecrets: %w", err)
 	}

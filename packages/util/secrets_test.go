@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/kmsapi"
 )
 
@@ -47,7 +47,7 @@ func TestB64KeysDecodeOnProjection(t *testing.T) {
 		"staker-0.crt":     "-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n",
 		"signer-0.key.b64": "AAEf/3+ACg==", // base64 of raw
 	}}
-	scope := v1alpha1.MachineIdentityScopeInWorkspace{
+	scope := secretsv1.MachineIdentityScopeInWorkspace{
 		ProjectSlug: "lux",
 		EnvSlug:     "testnet",
 		SecretsPath: "/staking",
@@ -76,7 +76,7 @@ func TestB64KeysDecodeOnProjection(t *testing.T) {
 // does not decode fails the whole fetch rather than projecting garbage.
 func TestB64KeyInvalidBase64FailsClosed(t *testing.T) {
 	ft := &fakeTransport{values: map[string]string{"signer-0.key.b64": "not!!base64"}}
-	scope := v1alpha1.MachineIdentityScopeInWorkspace{
+	scope := secretsv1.MachineIdentityScopeInWorkspace{
 		ProjectSlug: "lux",
 		EnvSlug:     "testnet",
 		SecretsPath: "/staking",

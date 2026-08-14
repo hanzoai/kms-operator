@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/constants"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +19,7 @@ import (
 const DEPLOYMENT_SECRET_NAME_ANNOTATION_PREFIX = "secrets.lux.network/managed-secret"
 const AUTO_RELOAD_DEPLOYMENT_ANNOTATION = "secrets.lux.network/auto-reload" // needs to be set to true for a deployment to start auto redeploying
 
-func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controllerClient.Client, logger logr.Logger, managedSecret v1alpha1.ManagedKubeSecretConfig) (int, error) {
+func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controllerClient.Client, logger logr.Logger, managedSecret secretsv1.ManagedKubeSecretConfig) (int, error) {
 	listOfDeployments := &v1.DeploymentList{}
 
 	err := client.List(ctx, listOfDeployments, &controllerClient.ListOptions{Namespace: managedSecret.SecretNamespace})
@@ -100,7 +100,7 @@ func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controll
 	return 0, nil
 }
 
-func ReconcileDeploymentsWithMultipleManagedSecrets(ctx context.Context, client controllerClient.Client, logger logr.Logger, managedSecrets []v1alpha1.ManagedKubeSecretConfig) (int, error) {
+func ReconcileDeploymentsWithMultipleManagedSecrets(ctx context.Context, client controllerClient.Client, logger logr.Logger, managedSecrets []secretsv1.ManagedKubeSecretConfig) (int, error) {
 	for _, managedSecret := range managedSecrets {
 		_, err := ReconcileDeploymentsWithManagedSecrets(ctx, client, logger, managedSecret)
 		if err != nil {
@@ -112,7 +112,7 @@ func ReconcileDeploymentsWithMultipleManagedSecrets(ctx context.Context, client 
 }
 
 // Check if the deployment uses managed secrets
-func IsDeploymentUsingManagedSecret(deployment v1.Deployment, managedSecret v1alpha1.ManagedKubeSecretConfig) bool {
+func IsDeploymentUsingManagedSecret(deployment v1.Deployment, managedSecret secretsv1.ManagedKubeSecretConfig) bool {
 	managedSecretName := managedSecret.SecretName
 	for _, container := range deployment.Spec.Template.Spec.Containers {
 		for _, envFrom := range container.EnvFrom {
@@ -135,7 +135,7 @@ func IsDeploymentUsingManagedSecret(deployment v1.Deployment, managedSecret v1al
 	return false
 }
 
-func IsDaemonSetUsingManagedSecret(daemonSet v1.DaemonSet, managedSecret v1alpha1.ManagedKubeSecretConfig) bool {
+func IsDaemonSetUsingManagedSecret(daemonSet v1.DaemonSet, managedSecret secretsv1.ManagedKubeSecretConfig) bool {
 	managedSecretName := managedSecret.SecretName
 	for _, container := range daemonSet.Spec.Template.Spec.Containers {
 		for _, envFrom := range container.EnvFrom {
@@ -159,7 +159,7 @@ func IsDaemonSetUsingManagedSecret(daemonSet v1.DaemonSet, managedSecret v1alpha
 	return false
 }
 
-func IsStatefulSetUsingManagedSecret(statefulSet v1.StatefulSet, managedSecret v1alpha1.ManagedKubeSecretConfig) bool {
+func IsStatefulSetUsingManagedSecret(statefulSet v1.StatefulSet, managedSecret secretsv1.ManagedKubeSecretConfig) bool {
 	managedSecretName := managedSecret.SecretName
 	for _, container := range statefulSet.Spec.Template.Spec.Containers {
 		for _, envFrom := range container.EnvFrom {

@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/hanzoai/kms-operator
-  newTag: v0.4.2
+  newTag: v0.4.5

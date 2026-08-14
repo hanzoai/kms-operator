@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/kmsapi"
 	"github.com/hanzoai/kms-operator/packages/model"
 )
@@ -35,7 +35,7 @@ func GetPlainTextSecretsViaMachineIdentity(
 	kmsClient kmsapi.Transport,
 	host string,
 	bearerToken string,
-	scope v1alpha1.MachineIdentityScopeInWorkspace,
+	scope secretsv1.MachineIdentityScopeInWorkspace,
 ) ([]model.SingleEnvironmentVariable, error) {
 
 	if kmsClient == nil {

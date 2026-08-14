@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/sethvargo/go-password/password"
 )
 
@@ -35,7 +35,7 @@ func generateSafePassword(
 	)
 }
 
-func GeneratorPassword(spec v1alpha1.PasswordSpec) (string, error) {
+func GeneratorPassword(spec secretsv1.PasswordSpec) (string, error) {
 
 	symbolCharacters := defaultSymbolChars
 

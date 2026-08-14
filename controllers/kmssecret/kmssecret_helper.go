@@ -28,7 +28,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/api"
 	"github.com/hanzoai/kms-operator/packages/constants"
 	"github.com/hanzoai/kms-operator/packages/crypto"
@@ -47,7 +47,7 @@ import (
 // and returns a fresh bearer token bound to the configured host.
 func (r *KMSSecretReconciler) handleAuthentication(
 	ctx context.Context,
-	kmsSecret v1alpha1.KMSSecret,
+	kmsSecret secretsv1.KMSSecret,
 	host string,
 	kmsClient kmsapi.Transport,
 ) (util.AuthenticationDetails, error) {
@@ -70,7 +70,7 @@ func (r *KMSSecretReconciler) handleAuthentication(
 
 func (r *KMSSecretReconciler) getKMSCaCertificateFromKubeSecret(
 	ctx context.Context,
-	kmsSecret v1alpha1.KMSSecret,
+	kmsSecret secretsv1.KMSSecret,
 ) (string, error) {
 	caCertificateFromKubeSecret, err := util.GetKubeSecretByNamespacedName(ctx, r.Client, types.NamespacedName{
 		Namespace: kmsSecret.Spec.TLS.CaRef.SecretNamespace,
@@ -98,7 +98,7 @@ func convertBinaryToStringMap(binaryMap map[string][]byte) map[string]string {
 func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 	ctx context.Context,
 	logger logr.Logger,
-	kmsSecret v1alpha1.KMSSecret,
+	kmsSecret secretsv1.KMSSecret,
 	managedSecretReferenceInterface interface{},
 	secretsFromAPI []model.SingleEnvironmentVariable,
 	ETag string,
@@ -107,12 +107,12 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 
 	plainProcessedSecrets := make(map[string][]byte)
 
-	var managedTemplateData *v1alpha1.SecretTemplate
+	var managedTemplateData *secretsv1.SecretTemplate
 
 	if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_SECRET {
-		managedTemplateData = managedSecretReferenceInterface.(v1alpha1.ManagedKubeSecretConfig).Template
+		managedTemplateData = managedSecretReferenceInterface.(secretsv1.ManagedKubeSecretConfig).Template
 	} else if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_CONFIG_MAP {
-		managedTemplateData = managedSecretReferenceInterface.(v1alpha1.ManagedKubeConfigMapConfig).Template
+		managedTemplateData = managedSecretReferenceInterface.(secretsv1.ManagedKubeConfigMapConfig).Template
 	}
 
 	if managedTemplateData == nil || managedTemplateData.IncludeAllSecrets {
@@ -166,7 +166,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 	}
 
 	if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_SECRET {
-		managedSecretReference := managedSecretReferenceInterface.(v1alpha1.ManagedKubeSecretConfig)
+		managedSecretReference := managedSecretReferenceInterface.(secretsv1.ManagedKubeSecretConfig)
 		annotations[constants.SECRET_VERSION_ANNOTATION] = ETag
 
 		newKubeSecretInstance := &corev1.Secret{
@@ -194,7 +194,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 		logger.Info(fmt.Sprintf("Successfully created a managed Kubernetes secret with your KMS secrets. Type: %s", managedSecretReference.SecretType))
 		return nil
 	} else if resourceType == constants.MANAGED_KUBE_RESOURCE_TYPE_CONFIG_MAP {
-		managedSecretReference := managedSecretReferenceInterface.(v1alpha1.ManagedKubeConfigMapConfig)
+		managedSecretReference := managedSecretReferenceInterface.(secretsv1.ManagedKubeConfigMapConfig)
 
 		newKubeConfigMapInstance := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -226,7 +226,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(
 	ctx context.Context,
 	logger logr.Logger,
-	managedSecretReference v1alpha1.ManagedKubeSecretConfig,
+	managedSecretReference secretsv1.ManagedKubeSecretConfig,
 	managedKubeSecret corev1.Secret,
 	secretsFromAPI []model.SingleEnvironmentVariable,
 	ETag string,
@@ -283,7 +283,7 @@ func (r *KMSSecretReconciler) updateKMSManagedKubeSecret(
 func (r *KMSSecretReconciler) updateKMSManagedConfigMap(
 	ctx context.Context,
 	logger logr.Logger,
-	managedConfigMapReference v1alpha1.ManagedKubeConfigMapConfig,
+	managedConfigMapReference secretsv1.ManagedKubeConfigMapConfig,
 	managedConfigMap corev1.ConfigMap,
 	secretsFromAPI []model.SingleEnvironmentVariable,
 	ETag string,
@@ -357,7 +357,7 @@ func (r *KMSSecretReconciler) fetchSecretsFromAPI(
 	return plainText, nil
 }
 
-func (r *KMSSecretReconciler) getResourceVariables(kmsSecret v1alpha1.KMSSecret) util.ResourceVariables {
+func (r *KMSSecretReconciler) getResourceVariables(kmsSecret secretsv1.KMSSecret) util.ResourceVariables {
 	if rv, ok := kmsSecretResourceVariablesMap[string(kmsSecret.UID)]; ok {
 		return rv
 	}
@@ -381,7 +381,7 @@ func (r *KMSSecretReconciler) getResourceVariables(kmsSecret v1alpha1.KMSSecret)
 // (transport-selection helpers moved to packages/util/transport.go so
 // both reconcilers share the same factory.)
 
-func (r *KMSSecretReconciler) updateResourceVariables(kmsSecret v1alpha1.KMSSecret, resourceVariables util.ResourceVariables) {
+func (r *KMSSecretReconciler) updateResourceVariables(kmsSecret secretsv1.KMSSecret, resourceVariables util.ResourceVariables) {
 	kmsSecretResourceVariablesMap[string(kmsSecret.UID)] = resourceVariables
 }
 
@@ -390,9 +390,9 @@ func (r *KMSSecretReconciler) updateResourceVariables(kmsSecret v1alpha1.KMSSecr
 func (r *KMSSecretReconciler) ReconcileKMSSecret(
 	ctx context.Context,
 	logger logr.Logger,
-	kmsSecret *v1alpha1.KMSSecret,
-	managedKubeSecretReferences []v1alpha1.ManagedKubeSecretConfig,
-	managedKubeConfigMapReferences []v1alpha1.ManagedKubeConfigMapConfig,
+	kmsSecret *secretsv1.KMSSecret,
+	managedKubeSecretReferences []secretsv1.ManagedKubeSecretConfig,
+	managedKubeConfigMapReferences []secretsv1.ManagedKubeConfigMapConfig,
 ) (int, error) {
 
 	if kmsSecret == nil {

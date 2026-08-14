@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/internal/bootstrap"
 )
 
@@ -61,13 +61,13 @@ func mnemonicSecret(name, servicePath string) *corev1.Secret {
 // kmsSecretCR builds a KMSSecret CR scoped to one (org, env, path) and
 // pinned to an explicit identity (mnemonic Secret + service path) so
 // several CRs can resolve to the SAME NodeID — the many-to-many shape.
-func kmsSecretCR(name, mnemonicSecret, servicePath, org, env, path string) *secretsv1alpha1.KMSSecret {
-	cr := &secretsv1alpha1.KMSSecret{
+func kmsSecretCR(name, mnemonicSecret, servicePath, org, env, path string) *secretsv1.KMSSecret {
+	cr := &secretsv1.KMSSecret{
 		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "hanzo"},
 	}
 	cr.Spec.MnemonicSecretRef.SecretName = mnemonicSecret
 	cr.Spec.ServicePath = servicePath
-	cr.Spec.Authentication.UniversalAuth.SecretsScope = secretsv1alpha1.MachineIdentityScopeInWorkspace{
+	cr.Spec.Authentication.UniversalAuth.SecretsScope = secretsv1.MachineIdentityScopeInWorkspace{
 		ProjectSlug: org,
 		EnvSlug:     env,
 		SecretsPath: path,

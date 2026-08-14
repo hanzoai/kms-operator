@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/api"
 	"github.com/hanzoai/kms-operator/packages/constants"
 	controllerhelpers "github.com/hanzoai/kms-operator/packages/controllerhelpers"
@@ -60,7 +60,7 @@ func (r *KMSPushSecretReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	logger := r.GetLogger(req)
 
-	var kmsPushSecretCRD secretsv1alpha1.KMSPushSecret
+	var kmsPushSecretCRD secretsv1.KMSPushSecret
 	requeueTime := time.Minute // seconds
 
 	err := r.Get(ctx, req.NamespacedName, &kmsPushSecretCRD)
@@ -251,7 +251,7 @@ func (r *KMSPushSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	controllerManager := ctrl.NewControllerManagedBy(mgr).
-		For(&secretsv1alpha1.KMSPushSecret{}, builder.WithPredicates(
+		For(&secretsv1.KMSPushSecret{}, builder.WithPredicates(
 			specChangeOrDelete,
 		)).
 		Watches(
@@ -262,7 +262,7 @@ func (r *KMSPushSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if !r.IsNamespaceScoped {
 		r.BaseLogger.Info("Watching ClusterGenerators for non-namespace scoped operator")
 		controllerManager.Watches(
-			&secretsv1alpha1.ClusterGenerator{},
+			&secretsv1.ClusterGenerator{},
 			handler.EnqueueRequestsFromMapFunc(r.findPushSecretsForClusterGenerator),
 		)
 	} else {
@@ -273,12 +273,12 @@ func (r *KMSPushSecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *KMSPushSecretReconciler) findPushSecretsForClusterGenerator(ctx context.Context, o client.Object) []reconcile.Request {
-	pushSecrets := &secretsv1alpha1.KMSPushSecretList{}
+	pushSecrets := &secretsv1.KMSPushSecretList{}
 	if err := r.List(ctx, pushSecrets); err != nil {
 		return []reconcile.Request{}
 	}
 
-	clusterGenerator, ok := o.(*secretsv1alpha1.ClusterGenerator)
+	clusterGenerator, ok := o.(*secretsv1.ClusterGenerator)
 	if !ok {
 		return []reconcile.Request{}
 	}
@@ -304,7 +304,7 @@ func (r *KMSPushSecretReconciler) findPushSecretsForClusterGenerator(ctx context
 }
 
 func (r *KMSPushSecretReconciler) findPushSecretsForSecret(ctx context.Context, o client.Object) []reconcile.Request {
-	pushSecrets := &secretsv1alpha1.KMSPushSecretList{}
+	pushSecrets := &secretsv1.KMSPushSecretList{}
 	if err := r.List(ctx, pushSecrets); err != nil {
 		return []reconcile.Request{}
 	}

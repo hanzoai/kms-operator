@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	secretsv1alpha1 "github.com/hanzoai/kms-operator/api/v1alpha1"
+	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/internal/bootstrap"
 )
 
@@ -54,7 +54,7 @@ func newFakeClient(t *testing.T, objs ...client.Object) client.Client {
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		t.Fatalf("add core scheme: %v", err)
 	}
-	if err := secretsv1alpha1.AddToScheme(scheme); err != nil {
+	if err := secretsv1.AddToScheme(scheme); err != nil {
 		t.Fatalf("add secrets scheme: %v", err)
 	}
 	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(objs...).Build()
