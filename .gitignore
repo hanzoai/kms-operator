@@ -29,7 +29,6 @@ Dockerfile.cross
 auto-token
 
 # AI docs
-CLAUDE.md
 AGENTS.md
 GEMINI.md
 QWEN.md
