@@ -185,8 +185,17 @@ type KMSSecretStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Authenticated",type=string,JSONPath=`.status.conditions[?(@.type=="kms.hanzo.ai/LoadedKMSToken")].status`
+//+kubebuilder:printcolumn:name="Synced",type=string,JSONPath=`.status.conditions[?(@.type=="kms.hanzo.ai/ReadyToSyncSecrets")].status`
+//+kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+//+kubebuilder:printcolumn:name="Message",type=string,priority=1,JSONPath=`.status.conditions[?(@.type=="kms.hanzo.ai/ReadyToSyncSecrets")].message`
 
 // KMSSecret is the Schema for the kmssecrets API
+//
+// Both conditions are printed because they are different faults with different
+// owners: Authenticated=False is the credential, Authenticated=True with
+// Synced=False is the value at the addressed path. Declaring neither leaves
+// every row rendering as NAME and AGE, which states nothing about either.
 type KMSSecret struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -102,6 +102,10 @@ type KMSPushSecretStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Reconciled",type=string,JSONPath=`.status.conditions[?(@.type=="kms.hanzo.ai/Reconcile")].status`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// +kubebuilder:printcolumn:name="Message",type=string,priority=1,JSONPath=`.status.conditions[?(@.type=="kms.hanzo.ai/Reconcile")].message`
+
 // KMSPushSecret is the Schema for the kmspushsecrets API
 type KMSPushSecret struct {
 	metav1.TypeMeta   `json:",inline"`
