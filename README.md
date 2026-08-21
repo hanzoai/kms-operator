@@ -1,3 +1,10 @@
+> **Retired — this is a stale copy of `hanzoai/kms-operator`.**
+>
+> Every branch here is reachable from `hanzoai/kms-operator` — 14 refs, not one commit it lacks — and this copy has no push mirror, so anything committed here reached nothing.
+>
+> It also declared `ghcr.io/hanzoai/kms-operator`, the tag `hanzoai/kms-operator` owns, so a push here
+> could have published over it. That declaration is removed.
+
 <p align="center"><img src=".github/hero.svg" alt="kms-operator" width="880"></p>
 
 # k8-operator
