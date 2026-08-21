@@ -10,12 +10,13 @@ RUN addgroup -g 65532 -S nonroot && adduser -u 65532 -S nonroot -G nonroot
 
 WORKDIR /workspace
 
-# Copy the Go Modules manifests + vendor tree. Vendoring is required
-# because github.com/luxfi/kms is private — without vendor we'd need a
-# GitHub PAT in the build context to authenticate `go mod download`.
+# Dependencies resolve from the module proxy. This used to copy a 74 MB vendor
+# tree on the grounds that github.com/luxfi/kms was private and a build without
+# it would need a PAT. That repository is public — proxy.golang.org serves it and
+# an unauthenticated clone succeeds — so the tree bought nothing.
 COPY go.mod go.mod
 COPY go.sum go.sum
-COPY vendor/ vendor/
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 # Copy the go source
 COPY main.go main.go
@@ -26,11 +27,12 @@ COPY packages/ packages/
 # main.go imports; without it the build fails "package … is not in std".
 COPY internal/ internal/
 
-# Build off the vendored deps; -mod=vendor short-circuits the module
-# resolver so no network calls are made during build.
+# go.sum is the integrity check the tree stood in for: a module whose hash does
+# not match is refused, whichever way it arrived.
 RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -mod=vendor -a -o manager main.go
+    go build -a -o manager main.go
 
 # Scratch runtime — static binary + CA certs + tzdata + nonroot user.
 FROM scratch
