@@ -58,9 +58,9 @@ func (r *KMSSecretReconciler) GetLogger(req ctrl.Request) logr.Logger {
 	return r.BaseLogger.WithValues("kmssecret", req.NamespacedName)
 }
 
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmssecrets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmssecrets/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmssecrets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmssecrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmssecrets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmssecrets/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments;daemonsets;statefulsets,verbs=list;watch;get;update

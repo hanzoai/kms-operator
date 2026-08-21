@@ -3,7 +3,7 @@
 ## Overview
 Go module: `github.com/hanzoai/kms-operator`.
 
-Reconciles `KMSSecret` and `KMSPushSecret` CRDs (`secrets.lux.network/v1`)
+Reconciles `KMSSecret` and `KMSPushSecret` CRDs (`kms.hanzo.ai/v1`)
 against the canonical luxfi/kms surface (`~/work/hanzo/kms` cmd/kmsd at
 `kms.hanzo.svc.cluster.local`).
 

@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
-  name: clustergenerators.secrets.lux.network
+  name: clustergenerators.kms.hanzo.ai
 spec:
-  group: secrets.lux.network
+  group: kms.hanzo.ai
   names:
     kind: ClusterGenerator
     listKind: ClusterGeneratorList

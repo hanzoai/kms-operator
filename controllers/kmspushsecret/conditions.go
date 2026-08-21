@@ -17,14 +17,14 @@ func (r *KMSPushSecretReconciler) SetReconcileStatusCondition(ctx context.Contex
 
 	if err != nil {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/Reconcile",
+			Type:    "kms.hanzo.ai/Reconcile",
 			Status:  metav1.ConditionTrue,
 			Reason:  "Error",
 			Message: fmt.Sprintf("Reconcile failed, secrets were not pushed to KMS. Error: %s", err.Error()),
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/Reconcile",
+			Type:    "kms.hanzo.ai/Reconcile",
 			Status:  metav1.ConditionFalse,
 			Reason:  "OK",
 			Message: "Reconcile succeeded, secrets were pushed to KMS",
@@ -42,14 +42,14 @@ func (r *KMSPushSecretReconciler) SetFailedToReplaceSecretsStatusCondition(ctx c
 
 	if failMessage != "" {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToReplaceSecrets",
+			Type:    "kms.hanzo.ai/FailedToReplaceSecrets",
 			Status:  metav1.ConditionTrue,
 			Reason:  "Error",
 			Message: failMessage,
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToReplaceSecrets",
+			Type:    "kms.hanzo.ai/FailedToReplaceSecrets",
 			Status:  metav1.ConditionFalse,
 			Reason:  "OK",
 			Message: "No errors, no secrets failed to be replaced in KMS",
@@ -66,14 +66,14 @@ func (r *KMSPushSecretReconciler) SetFailedToCreateSecretsStatusCondition(ctx co
 
 	if failMessage != "" {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToCreateSecrets",
+			Type:    "kms.hanzo.ai/FailedToCreateSecrets",
 			Status:  metav1.ConditionTrue,
 			Reason:  "Error",
 			Message: failMessage,
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToCreateSecrets",
+			Type:    "kms.hanzo.ai/FailedToCreateSecrets",
 			Status:  metav1.ConditionFalse,
 			Reason:  "OK",
 			Message: "No errors encountered, no secrets failed to be created in KMS",
@@ -90,14 +90,14 @@ func (r *KMSPushSecretReconciler) SetFailedToUpdateSecretsStatusCondition(ctx co
 
 	if failMessage != "" {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToUpdateSecrets",
+			Type:    "kms.hanzo.ai/FailedToUpdateSecrets",
 			Status:  metav1.ConditionTrue,
 			Reason:  "Error",
 			Message: failMessage,
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToUpdateSecrets",
+			Type:    "kms.hanzo.ai/FailedToUpdateSecrets",
 			Status:  metav1.ConditionFalse,
 			Reason:  "OK",
 			Message: "No errors encountered, no secrets failed to be updated in KMS",
@@ -114,14 +114,14 @@ func (r *KMSPushSecretReconciler) SetFailedToDeleteSecretsStatusCondition(ctx co
 
 	if failMessage != "" {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToDeleteSecrets",
+			Type:    "kms.hanzo.ai/FailedToDeleteSecrets",
 			Status:  metav1.ConditionTrue,
 			Reason:  "Error",
 			Message: failMessage,
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/FailedToDeleteSecrets",
+			Type:    "kms.hanzo.ai/FailedToDeleteSecrets",
 			Status:  metav1.ConditionFalse,
 			Reason:  "OK",
 			Message: "No errors encountered, no secrets failed to be deleted",
@@ -138,14 +138,14 @@ func (r *KMSPushSecretReconciler) SetAuthenticatedStatusCondition(ctx context.Co
 
 	if errorToConditionOn != nil {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/Authenticated",
+			Type:    "kms.hanzo.ai/Authenticated",
 			Status:  metav1.ConditionFalse,
 			Reason:  "Error",
 			Message: "Failed to authenticate with KMS API. This can be caused by invalid service token or an invalid API host that is set. Check operator logs for more info",
 		})
 	} else {
 		meta.SetStatusCondition(&kmsPushSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/Authenticated",
+			Type:    "kms.hanzo.ai/Authenticated",
 			Status:  metav1.ConditionTrue,
 			Reason:  "OK",
 			Message: "Successfully authenticated with KMS API",

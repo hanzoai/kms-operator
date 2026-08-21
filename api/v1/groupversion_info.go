@@ -1,6 +1,6 @@
 // Package v1 contains API Schema definitions for the secrets v1 API group
 // +kubebuilder:object:generate=true
-// +groupName=secrets.lux.network
+// +groupName=kms.hanzo.ai
 package v1
 
 import (
@@ -10,7 +10,7 @@ import (
 
 var (
 	// GroupVersion is group version used to register these objects
-	GroupVersion = schema.GroupVersion{Group: "secrets.lux.network", Version: "v1"}
+	GroupVersion = schema.GroupVersion{Group: "kms.hanzo.ai", Version: "v1"}
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: GroupVersion}

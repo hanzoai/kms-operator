@@ -55,7 +55,7 @@ rules:
   verbs:
   - create
 - apiGroups:
-  - secrets.lux.network
+  - kms.hanzo.ai
   resources:
   - clustergenerators
   - kmspushsecrets
@@ -69,14 +69,14 @@ rules:
   - update
   - watch
 - apiGroups:
-  - secrets.lux.network
+  - kms.hanzo.ai
   resources:
   - kmspushsecrets/finalizers
   - kmssecrets/finalizers
   verbs:
   - update
 - apiGroups:
-  - secrets.lux.network
+  - kms.hanzo.ai
   resources:
   - kmspushsecrets/status
   - kmssecrets/status

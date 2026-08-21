@@ -40,9 +40,9 @@ func (r *KMSPushSecretReconciler) GetLogger(req ctrl.Request) logr.Logger {
 	return r.BaseLogger.WithValues("kmspushsecret", req.NamespacedName)
 }
 
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmspushsecrets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmspushsecrets/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=kmspushsecrets/finalizers,verbs=update
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmspushsecrets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmspushsecrets/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=kmspushsecrets/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=list;watch;get;update
@@ -50,7 +50,7 @@ func (r *KMSPushSecretReconciler) GetLogger(req ctrl.Request) logr.Logger {
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list
 //+kubebuilder:rbac:groups="authentication.k8s.io",resources=tokenreviews,verbs=create
 //+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create
-//+kubebuilder:rbac:groups=secrets.lux.network,resources=clustergenerators,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=kms.hanzo.ai,resources=clustergenerators,verbs=get;list;watch;create;update;patch;delete
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // For more details, check Reconcile and its Result here:

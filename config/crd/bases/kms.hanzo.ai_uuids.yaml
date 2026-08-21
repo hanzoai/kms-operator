@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.20.1
-  name: uuids.secrets.lux.network
+  name: uuids.kms.hanzo.ai
 spec:
-  group: secrets.lux.network
+  group: kms.hanzo.ai
   names:
     kind: UUID
     listKind: UUIDList

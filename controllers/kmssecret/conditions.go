@@ -18,21 +18,21 @@ func (r *KMSSecretReconciler) SetReadyToSyncSecretsConditions(ctx context.Contex
 
 	if errorToConditionOn != nil {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/ReadyToSyncSecrets",
+			Type:    "kms.hanzo.ai/ReadyToSyncSecrets",
 			Status:  metav1.ConditionFalse,
 			Reason:  "Error",
 			Message: fmt.Sprintf("Failed to sync secrets. This can be caused by invalid access token or an invalid API host that is set. Error: %v", errorToConditionOn),
 		})
 
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/AutoRedeployReady",
+			Type:    "kms.hanzo.ai/AutoRedeployReady",
 			Status:  metav1.ConditionFalse,
 			Reason:  "Stopped",
 			Message: fmt.Sprintf("Auto redeployment has been stopped because the operator failed to sync secrets. Error: %v", errorToConditionOn),
 		})
 	} else {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/ReadyToSyncSecrets",
+			Type:    "kms.hanzo.ai/ReadyToSyncSecrets",
 			Status:  metav1.ConditionTrue,
 			Reason:  "OK",
 			Message: fmt.Sprintf("KMS controller has started syncing your secrets. Last reconcile synced %d secrets", secretsCount),
@@ -52,14 +52,14 @@ func (r *KMSSecretReconciler) SetKMSTokenLoadCondition(ctx context.Context, logg
 
 	if errorToConditionOn == nil {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/LoadedKMSToken",
+			Type:    "kms.hanzo.ai/LoadedKMSToken",
 			Status:  metav1.ConditionTrue,
 			Reason:  "OK",
 			Message: fmt.Sprintf("KMS controller has loaded the KMS token in provided Kubernetes secret, using %v authentication strategy", authStrategy),
 		})
 	} else {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/LoadedKMSToken",
+			Type:    "kms.hanzo.ai/LoadedKMSToken",
 			Status:  metav1.ConditionFalse,
 			Reason:  "Error",
 			Message: fmt.Sprintf("Failed to load KMS Token from the provided Kubernetes secret because: %v", errorToConditionOn),
@@ -79,14 +79,14 @@ func (r *KMSSecretReconciler) SetKMSAutoRedeploymentReady(ctx context.Context, l
 
 	if errorToConditionOn == nil {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/AutoRedeployReady",
+			Type:    "kms.hanzo.ai/AutoRedeployReady",
 			Status:  metav1.ConditionTrue,
 			Reason:  "OK",
 			Message: fmt.Sprintf("KMS has found %v deployments which are ready to be auto redeployed when secrets change", numDeployments),
 		})
 	} else {
 		meta.SetStatusCondition(&kmsSecret.Status.Conditions, metav1.Condition{
-			Type:    "secrets.lux.network/AutoRedeployReady",
+			Type:    "kms.hanzo.ai/AutoRedeployReady",
 			Status:  metav1.ConditionFalse,
 			Reason:  "Error",
 			Message: fmt.Sprintf("Failed reconcile deployments because: %v", errorToConditionOn),

@@ -16,8 +16,8 @@ import (
 	controllerClient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const DEPLOYMENT_SECRET_NAME_ANNOTATION_PREFIX = "secrets.lux.network/managed-secret"
-const AUTO_RELOAD_DEPLOYMENT_ANNOTATION = "secrets.lux.network/auto-reload" // needs to be set to true for a deployment to start auto redeploying
+const DEPLOYMENT_SECRET_NAME_ANNOTATION_PREFIX = "kms.hanzo.ai/managed-secret"
+const AUTO_RELOAD_DEPLOYMENT_ANNOTATION = "kms.hanzo.ai/auto-reload" // needs to be set to true for a deployment to start auto redeploying
 
 func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controllerClient.Client, logger logr.Logger, managedSecret secretsv1.ManagedKubeSecretConfig) (int, error) {
 	listOfDeployments := &v1.DeploymentList{}

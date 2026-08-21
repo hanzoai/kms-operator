@@ -5,7 +5,7 @@ metadata:
   labels:
     app: nginx
   annotations: 
-    secrets.lux.network/auto-reload: "true"
+    kms.hanzo.ai/auto-reload: "true"
 spec:
   replicas: 3
   selector:
