@@ -20,6 +20,8 @@ func (f *fakeTransport) LoginCached(context.Context, string, string, string) (st
 	return "t", nil
 }
 func (f *fakeTransport) InvalidateToken(string, string, string) {}
+
+func (f *fakeTransport) InvalidateBearer(_, _ string) {}
 func (f *fakeTransport) GetSecret(_ context.Context, _, _, _, _, _, name string) (kmsapi.SecretResponse, error) {
 	v, ok := f.values[name]
 	if !ok {

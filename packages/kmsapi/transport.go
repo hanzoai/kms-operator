@@ -55,6 +55,7 @@ type Transport interface {
 	// clientSecret). ZAP implementations may make this a no-op since
 	// the synthetic token has no expiry.
 	InvalidateToken(host, clientID, clientSecret string)
+	InvalidateBearer(host, token string)
 
 	// GetSecret reads a secret at scope (org, env, path, name).
 	// path may be empty (root scope).

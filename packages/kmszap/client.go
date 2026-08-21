@@ -218,6 +218,8 @@ func (c *Client) LoginCached(ctx context.Context, host, clientID, clientSecret s
 // interface must satisfy this method.
 func (c *Client) InvalidateToken(_, _, _ string) {}
 
+func (c *Client) InvalidateBearer(_, _ string) {}
+
 // GetSecret fetches a secret value. Token is ignored — auth is the
 // connection's NodeID. The luxfi/kms/pkg/zapclient.GetAt method
 // handles status decoding; ErrNotFound surfaces as zapclient's

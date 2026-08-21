@@ -427,7 +427,7 @@ func (r *KMSSecretReconciler) ReconcileKMSSecret(
 	if err != nil {
 		// On any auth-shaped failure, drop the cached token so the next
 		// reconcile re-issues login.
-		kmsClient.InvalidateToken(authDetails.Host, "", "")
+		kmsClient.InvalidateBearer(authDetails.Host, authDetails.BearerToken)
 		return 0, fmt.Errorf("failed to fetch secrets from API for managed secrets [err=%s]", err)
 	}
 	if len(plainTextSecretsFromApi) == 0 {

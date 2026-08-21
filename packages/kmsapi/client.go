@@ -258,6 +258,29 @@ func (c *Client) LoginCached(ctx context.Context, host, clientID, clientSecret s
 // InvalidateToken drops any cached bearer for the given (host, clientID,
 // clientSecret) triple. Call this after a 401 response to force a fresh
 // login on the next request.
+// InvalidateBearer drops whichever cached entry issued token.
+//
+// The caller that needs this holds the token that just failed, not the
+// credentials it was minted from — AuthenticationDetails carries BearerToken and
+// Host and deliberately does not carry the client secret. Invalidating by
+// credential from there is impossible, and passing empty strings to
+// InvalidateToken hashes to a key nothing is stored under, so the stale entry
+// survives and every later reconcile reuses the dead token.
+func (c *Client) InvalidateBearer(host, token string) {
+	if token == "" {
+		return
+	}
+	host = NormaliseHost(host)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for key, ct := range c.cache {
+		if ct.token == token {
+			delete(c.cache, key)
+		}
+	}
+	_ = host
+}
+
 func (c *Client) InvalidateToken(host, clientID, clientSecret string) {
 	host = NormaliseHost(host)
 	key := tokenCacheKey(host, clientID, clientSecret)

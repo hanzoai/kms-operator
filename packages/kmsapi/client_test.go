@@ -518,3 +518,60 @@ func TestRequest_RespectsContextDeadline(t *testing.T) {
 		t.Fatal("expected ctx deadline error")
 	}
 }
+
+// The bug this exists to prevent: the reconciler holds the token that failed,
+// not the credentials behind it, so it used to call InvalidateToken(host, "", "").
+// That hashes to a key nothing is stored under, the stale entry survives, and
+// every later reconcile reuses a dead token — which is how a 7-day token expiry
+// turned into weeks of 403s while the credentials themselves stayed valid.
+func TestInvalidateWithEmptyCredentialsDoesNotClearTheEntry(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"accessToken": "tok", "expiresIn": 3600})
+	}))
+	defer srv.Close()
+	c := newClient(t)
+
+	if _, err := c.LoginCached(context.Background(), srv.URL, "id", "sec"); err != nil {
+		t.Fatal(err)
+	}
+	c.InvalidateToken(srv.URL, "", "") // the old call site
+	if _, err := c.LoginCached(context.Background(), srv.URL, "id", "sec"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("logins = %d; the empty-credential invalidate was expected to be a no-op", calls)
+	}
+}
+
+// InvalidateBearer clears the entry using what the caller actually has.
+func TestInvalidateBearerForcesFreshLogin(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"accessToken": "tok", "expiresIn": 3600})
+	}))
+	defer srv.Close()
+	c := newClient(t)
+
+	tok, err := c.LoginCached(context.Background(), srv.URL, "id", "sec")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.InvalidateBearer(srv.URL, tok)
+	if _, err := c.LoginCached(context.Background(), srv.URL, "id", "sec"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("logins = %d, want 2 — the cached entry was not cleared", calls)
+	}
+	// An unknown token clears nothing.
+	c.InvalidateBearer(srv.URL, "not-the-cached-token")
+	if _, err := c.LoginCached(context.Background(), srv.URL, "id", "sec"); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("logins = %d — invalidating an unknown token evicted a live entry", calls)
+	}
+}
