@@ -32,3 +32,6 @@ auto-token
 AGENTS.md
 GEMINI.md
 QWEN.md.claude/
+
+# We do not vendor. go.mod + go.sum + the module cache are the record.
+/vendor/
