@@ -35,8 +35,8 @@ func TestGetCurrentValidators_UsesV1PChainPath(t *testing.T) {
 	if gotPath != PChainPath {
 		t.Fatalf("requested path = %q, want %q", gotPath, PChainPath)
 	}
-	if gotPath != "/v1/bc/P" {
-		t.Fatalf("PChainPath = %q, want /v1/bc/P — /ext/* is dead on this luxd", gotPath)
+	if gotPath != "/v1/chain/P" {
+		t.Fatalf("PChainPath = %q, want /v1/chain/P — /ext/* is dead on this luxd", gotPath)
 	}
 	if len(got) != 1 || got[0] != "NodeID-abc" {
 		t.Fatalf("validators = %v, want [NodeID-abc]", got)
