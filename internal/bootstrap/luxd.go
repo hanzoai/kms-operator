@@ -63,7 +63,7 @@ const DefaultLuxdRPCURL = "http://luxd-headless.lux-mainnet.svc.cluster.local:96
 // set). A 404 here is silent: GetCurrentValidators fails, the authority
 // snapshot is never refreshed, and the only symptom is a 401 on an
 // unrelated KMSSecret.
-const PChainPath = "/v1/bc/P"
+const PChainPath = "/v1/chain/P"
 
 // LuxdClient queries a luxd node's Platform Chain RPC.
 //

@@ -6,8 +6,9 @@
 # reference, whose GitHub-side wiring startup-failed and blocked releases.
 #
 # The image is the multi-stage root Dockerfile: it compiles the kubebuilder
-# `manager` binary off the vendored module tree (vendoring is required because
-# github.com/luxfi/kms is private) into a scratch runtime. Entrypoint /manager.
+# `manager` binary into a scratch runtime. Entrypoint /manager. Dependencies come
+# from the module proxy — the 74 MB vendor tree this used to carry was justified
+# by github.com/luxfi/kms being private, and that repository is public.
 images:
   - name: kms-operator
     context: .

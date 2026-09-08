@@ -46,8 +46,11 @@ func (apiWarningToDebug) HandleWarningHeader(code int, _ string, message string)
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(secretsv1.AddToScheme(scheme))
+	// The KMS types register in main, AFTER --api-group is read. The
+	// SchemeBuilder captures its GroupVersion at registration, so registering
+	// here would pin the default and leave the scheme on one group while the
+	// manager watched another — a controller that starts clean and never sees
+	// an object.
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -59,6 +62,9 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&namespace, "namespace", "", "Watch KMSSecrets scoped in the provided namespace only")
+	var apiGroup string
+	flag.StringVar(&apiGroup, "api-group", secretsv1.DefaultGroup,
+		"The KMS API group to serve: kms.<universe>, e.g. kms.hanzo.ai or kms.lux.cloud.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -69,6 +75,11 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Group first, then register: see the note in init.
+	secretsv1.SetGroup(apiGroup)
+	utilruntime.Must(secretsv1.AddToScheme(scheme))
+	setupLog.Info("serving KMS group", "group", secretsv1.GroupVersion.String())
 
 	ctrlOpts := ctrl.Options{
 		Scheme: scheme,
