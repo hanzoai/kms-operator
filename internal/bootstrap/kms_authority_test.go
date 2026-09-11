@@ -274,14 +274,15 @@ func TestEnsureServiceIdentity_IsIdempotent(t *testing.T) {
 
 // rcReconcile invokes one Runnable iteration synchronously by reaching
 // into the unexported reconcileOnce path via the Runnable Start with a
-// short-lived context. We use a 200ms cancel so the loop completes its
-// first pass (which runs before the ticker fires) and exits.
+// short-lived context, cancelled after the first pass (which runs before
+// the ticker fires) so the loop exits.
 func rcReconcile(ctx context.Context, t *testing.T, rec *bootstrap.Reconciler) {
 	t.Helper()
 	// Start runs the initial pass synchronously, then enters the ticker
-	// loop. We cancel after a brief window so the initial pass
-	// completes and the loop returns cleanly.
-	ctx2, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+	// loop. The window is also the deadline of that pass's luxd call, so it
+	// has to cover a cold first pass (the process's first ML-DSA key
+	// derivation) and stay under the 5s TTL so no second pass runs.
+	ctx2, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	if err := rec.Start(ctx2); err != nil && err != context.DeadlineExceeded {
 		// Start returns nil on ctx.Done so we don't expect an error
