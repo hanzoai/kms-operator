@@ -20,8 +20,8 @@ import (
 
 	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 	"github.com/hanzoai/kms-operator/packages/kmsapi"
-	corev1 "k8s.io/api/core/v1"
 	authenticationv1 "k8s.io/api/authentication/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/aws/smithy-go/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -54,7 +54,7 @@ var SecretCrd = struct {
 
 // SecretAuthInput carries the CR + its kind into the auth handler.
 type SecretAuthInput struct {
-	Secret interface{}
+	Secret any
 	Type   SecretCrdType
 }
 

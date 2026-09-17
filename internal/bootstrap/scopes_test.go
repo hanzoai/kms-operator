@@ -14,8 +14,6 @@ import (
 	"strings"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
 )
 
@@ -107,7 +105,7 @@ func TestGrantsFromKMSSecret_RootPathIsALegitimateGrant(t *testing.T) {
 // carries eight auth blocks as VALUES, so the seven a CR does not use are
 // present-but-zero. They must not each contribute a phantom grant.
 func TestGrantsFromKMSSecret_UnsetAuthBlocksProduceNoGrants(t *testing.T) {
-	cr := &secretsv1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "empty", Namespace: "hanzo"}}
+	cr := &secretsv1.KMSSecret{Name: "empty", Namespace: "hanzo"}
 	if got := GrantsFromKMSSecret(cr); len(got) != 0 {
 		t.Fatalf("a CR with no auth block produced %d grants: %v", len(got), got)
 	}
@@ -288,7 +286,7 @@ func TestSnapshot_Equal_AccountsForScopes(t *testing.T) {
 // per-CR hook and the authority pass depend on. Drift here emits grants
 // keyed to a NodeID no service presents.
 func TestIdentityRefForKMSSecret_Defaults(t *testing.T) {
-	cr := &secretsv1.KMSSecret{ObjectMeta: metav1.ObjectMeta{Name: "enso-secrets", Namespace: "hanzo-apps"}}
+	cr := &secretsv1.KMSSecret{Name: "enso-secrets", Namespace: "hanzo-apps"}
 	ref, path := IdentityRefForKMSSecret(cr, "hanzo")
 	if ref.Name != "enso-secrets-mnemonic" || ref.Namespace != "hanzo" {
 		t.Fatalf("default ref = %+v, want hanzo/enso-secrets-mnemonic", ref)
@@ -312,7 +310,7 @@ func TestIdentityRefForKMSSecret_Defaults(t *testing.T) {
 // crFor builds a KMSSecret CR matching one production fixture row.
 func crFor(row prodRow) *secretsv1.KMSSecret {
 	cr := &secretsv1.KMSSecret{
-		ObjectMeta: metav1.ObjectMeta{Name: row.cr, Namespace: "hanzo"},
+		Name: row.cr, Namespace: "hanzo",
 	}
 	cr.Spec.Authentication.UniversalAuth.SecretsScope = secretsv1.MachineIdentityScopeInWorkspace{
 		ProjectSlug: row.org,

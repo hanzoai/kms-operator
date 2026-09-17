@@ -23,6 +23,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	tpl "text/template"
 
@@ -249,9 +250,7 @@ func (r *KMSPushSecretReconciler) ReconcileKMSPushSecret(
 	if err != nil {
 		return fmt.Errorf("unable to process generators [err=%s]", err)
 	}
-	for key, value := range generatorSecrets {
-		processedSecrets[key] = value
-	}
+	maps.Copy(processedSecrets, generatorSecrets)
 
 	destination := kmsPushSecret.Spec.Destination
 	updatePolicy := kmsPushSecret.Spec.UpdatePolicy

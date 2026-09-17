@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -290,10 +289,8 @@ func (r *KMSPushSecretReconciler) findPushSecretsForClusterGenerator(ctx context
 			for _, generator := range pushSecret.Spec.Push.Generators {
 				if generator.GeneratorRef.Name == clusterGenerator.GetName() {
 					requests = append(requests, reconcile.Request{
-						NamespacedName: types.NamespacedName{
-							Name:      pushSecret.GetName(),
-							Namespace: pushSecret.GetNamespace(),
-						},
+						Name:      pushSecret.GetName(),
+						Namespace: pushSecret.GetNamespace(),
 					})
 					break
 				}
@@ -315,10 +312,8 @@ func (r *KMSPushSecretReconciler) findPushSecretsForSecret(ctx context.Context, 
 			pushSecret.Spec.Push.Secret.SecretName == o.GetName() &&
 			pushSecret.Spec.Push.Secret.SecretNamespace == o.GetNamespace() {
 			requests = append(requests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      pushSecret.GetName(),
-					Namespace: pushSecret.GetNamespace(),
-				},
+				Name:      pushSecret.GetName(),
+				Namespace: pushSecret.GetNamespace(),
 			})
 		}
 

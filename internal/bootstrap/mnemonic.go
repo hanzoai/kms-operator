@@ -28,7 +28,6 @@ import (
 	bip39 "github.com/luxfi/go-bip39"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -133,17 +132,15 @@ func LoadOrCreateMnemonic(
 // source category so operators can audit (without leaking the value).
 func persistMnemonic(ctx context.Context, c client.Client, ref MnemonicRef, mnemonic string, src MnemonicSource) error {
 	sec := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ref.Namespace,
-			Name:      ref.Name,
-			Labels: map[string]string{
-				"app.kubernetes.io/name":       ref.Name,
-				"app.kubernetes.io/managed-by": "kms-operator",
-				"app.kubernetes.io/component":  "service-mnemonic",
-			},
-			Annotations: map[string]string{
-				"kms-operator.lux.network/mnemonic-source": string(src),
-			},
+		Namespace: ref.Namespace,
+		Name:      ref.Name,
+		Labels: map[string]string{
+			"app.kubernetes.io/name":       ref.Name,
+			"app.kubernetes.io/managed-by": "kms-operator",
+			"app.kubernetes.io/component":  "service-mnemonic",
+		},
+		Annotations: map[string]string{
+			"kms-operator.lux.network/mnemonic-source": string(src),
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{MnemonicKey: []byte(mnemonic)},

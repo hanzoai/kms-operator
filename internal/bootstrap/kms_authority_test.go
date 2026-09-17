@@ -32,7 +32,6 @@ import (
 
 	logr "github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -168,15 +167,13 @@ func TestBootstrap_PicksUpServiceMnemonics(t *testing.T) {
 	// Seed a service-mnemonic Secret using a known phrase so the test
 	// is deterministic about which NodeID surfaces.
 	svcMnem := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "hanzo",
-			Name:      "hanzo-base-mnemonic",
-			Labels: map[string]string{
-				"app.kubernetes.io/component": "service-mnemonic",
-			},
-			Annotations: map[string]string{
-				"kms-operator.lux.network/service-path": "hanzo/hanzo-base",
-			},
+		Namespace: "hanzo",
+		Name:      "hanzo-base-mnemonic",
+		Labels: map[string]string{
+			"app.kubernetes.io/component": "service-mnemonic",
+		},
+		Annotations: map[string]string{
+			"kms-operator.lux.network/service-path": "hanzo/hanzo-base",
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
@@ -206,11 +203,9 @@ func TestBootstrap_LuxdUnreachable_PreservesExistingAuthority(t *testing.T) {
 	ctx := context.Background()
 	// Pre-seed the authority Secret with a known snapshot.
 	existing := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "hanzo",
-			Name:      "kms-consensus-authority",
-		},
-		Type: corev1.SecretTypeOpaque,
+		Namespace: "hanzo",
+		Name:      "kms-consensus-authority",
+		Type:      corev1.SecretTypeOpaque,
 		Data: map[string][]byte{
 			bootstrap.AuthorityKey: []byte(`{"validators":["NodeID-old-validator"],"operators":["NodeID-old-operator"]}`),
 		},

@@ -286,7 +286,7 @@ func TestLoginCached_SkipsSecondNetworkCall(t *testing.T) {
 	defer srv.Close()
 
 	c := newClient(t)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		tok, err := c.LoginCached(context.Background(), srv.URL, "id", "sec")
 		if err != nil {
 			t.Fatalf("LoginCached: %v", err)

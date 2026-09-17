@@ -25,7 +25,6 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	secretsv1 "github.com/hanzoai/kms-operator/api/v1"
@@ -45,13 +44,11 @@ var hanzoPlatformPaths = []string{
 // service path annotation.
 func mnemonicSecret(name, servicePath string) *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "hanzo",
-			Name:      name,
-			Labels:    map[string]string{"app.kubernetes.io/component": "service-mnemonic"},
-			Annotations: map[string]string{
-				"kms-operator.lux.network/service-path": servicePath,
-			},
+		Namespace: "hanzo",
+		Name:      name,
+		Labels:    map[string]string{"app.kubernetes.io/component": "service-mnemonic"},
+		Annotations: map[string]string{
+			"kms-operator.lux.network/service-path": servicePath,
 		},
 		Type: corev1.SecretTypeOpaque,
 		Data: map[string][]byte{bootstrap.MnemonicKey: []byte(knownMnemonic)},
@@ -63,7 +60,7 @@ func mnemonicSecret(name, servicePath string) *corev1.Secret {
 // several CRs can resolve to the SAME NodeID — the many-to-many shape.
 func kmsSecretCR(name, mnemonicSecret, servicePath, org, env, path string) *secretsv1.KMSSecret {
 	cr := &secretsv1.KMSSecret{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "hanzo"},
+		Name: name, Namespace: "hanzo",
 	}
 	cr.Spec.MnemonicSecretRef.SecretName = mnemonicSecret
 	cr.Spec.ServicePath = servicePath

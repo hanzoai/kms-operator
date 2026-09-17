@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	tpl "text/template"
 
@@ -39,7 +40,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8Errors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -99,7 +99,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 	ctx context.Context,
 	logger logr.Logger,
 	kmsSecret secretsv1.KMSSecret,
-	managedSecretReferenceInterface interface{},
+	managedSecretReferenceInterface any,
 	secretsFromAPI []model.SingleEnvironmentVariable,
 	ETag string,
 	resourceType constants.ManagedKubeResourceType,
@@ -146,9 +146,7 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 	}
 
 	labels := map[string]string{}
-	for k, v := range kmsSecret.Labels {
-		labels[k] = v
-	}
+	maps.Copy(labels, kmsSecret.Labels)
 
 	annotations := map[string]string{}
 	systemPrefixes := []string{"kubectl.kubernetes.io/", "kubernetes.io/", "k8s.io/", "helm.sh/"}
@@ -170,14 +168,12 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 		annotations[constants.SECRET_VERSION_ANNOTATION] = ETag
 
 		newKubeSecretInstance := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        managedSecretReference.SecretName,
-				Namespace:   managedSecretReference.SecretNamespace,
-				Annotations: annotations,
-				Labels:      labels,
-			},
-			Type: corev1.SecretType(managedSecretReference.SecretType),
-			Data: plainProcessedSecrets,
+			Name:        managedSecretReference.SecretName,
+			Namespace:   managedSecretReference.SecretNamespace,
+			Annotations: annotations,
+			Labels:      labels,
+			Type:        corev1.SecretType(managedSecretReference.SecretType),
+			Data:        plainProcessedSecrets,
 		}
 
 		if managedSecretReference.CreationPolicy == "Owner" {
@@ -197,13 +193,11 @@ func (r *KMSSecretReconciler) createKMSManagedKubeResource(
 		managedSecretReference := managedSecretReferenceInterface.(secretsv1.ManagedKubeConfigMapConfig)
 
 		newKubeConfigMapInstance := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        managedSecretReference.ConfigMapName,
-				Namespace:   managedSecretReference.ConfigMapNamespace,
-				Annotations: annotations,
-				Labels:      labels,
-			},
-			Data: convertBinaryToStringMap(plainProcessedSecrets),
+			Name:        managedSecretReference.ConfigMapName,
+			Namespace:   managedSecretReference.ConfigMapNamespace,
+			Annotations: annotations,
+			Labels:      labels,
+			Data:        convertBinaryToStringMap(plainProcessedSecrets),
 		}
 
 		if managedSecretReference.CreationPolicy == "Owner" {

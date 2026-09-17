@@ -54,7 +54,6 @@ func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controll
 
 	// Iterate over the deployments and check if they use the managed secret
 	for _, deployment := range listOfDeployments.Items {
-		deployment := deployment
 		if deployment.Annotations[AUTO_RELOAD_DEPLOYMENT_ANNOTATION] == "true" && IsDeploymentUsingManagedSecret(deployment, managedSecret) {
 			// Start a goroutine to reconcile the deployment
 			wg.Add(1)
@@ -69,7 +68,6 @@ func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controll
 
 	// Iterate over the daemonSets and check if they use the managed secret
 	for _, daemonSet := range listOfDaemonSets.Items {
-		daemonSet := daemonSet
 		if daemonSet.Annotations[AUTO_RELOAD_DEPLOYMENT_ANNOTATION] == "true" && IsDaemonSetUsingManagedSecret(daemonSet, managedSecret) {
 			wg.Add(1)
 			go func(deployment v1.DaemonSet, managedSecret corev1.Secret) {
@@ -83,7 +81,6 @@ func ReconcileDeploymentsWithManagedSecrets(ctx context.Context, client controll
 
 	// Iterate over the statefulSets and check if they use the managed secret
 	for _, statefulSet := range listOfStatefulSets.Items {
-		statefulSet := statefulSet
 		if statefulSet.Annotations[AUTO_RELOAD_DEPLOYMENT_ANNOTATION] == "true" && IsStatefulSetUsingManagedSecret(statefulSet, managedSecret) {
 			wg.Add(1)
 			go func(statefulSet v1.StatefulSet, managedSecret corev1.Secret) {

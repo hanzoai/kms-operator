@@ -39,7 +39,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -221,17 +220,15 @@ func SaveAuthority(ctx context.Context, c client.Client, ref AuthorityRef, snap 
 	}
 	if k8serrors.IsNotFound(getErr) {
 		sec := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ref.Namespace,
-				Name:      ref.Name,
-				Labels: map[string]string{
-					"app.kubernetes.io/name":       "kms-consensus-authority",
-					"app.kubernetes.io/managed-by": "kms-operator",
-					"app.kubernetes.io/component":  "consensus-authority",
-				},
-				Annotations: map[string]string{
-					"kms-operator.lux.network/snapshot-source": "consensus-bootstrap",
-				},
+			Namespace: ref.Namespace,
+			Name:      ref.Name,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "kms-consensus-authority",
+				"app.kubernetes.io/managed-by": "kms-operator",
+				"app.kubernetes.io/component":  "consensus-authority",
+			},
+			Annotations: map[string]string{
+				"kms-operator.lux.network/snapshot-source": "consensus-bootstrap",
 			},
 			Type: corev1.SecretTypeOpaque,
 			Data: map[string][]byte{AuthorityKey: canonical},

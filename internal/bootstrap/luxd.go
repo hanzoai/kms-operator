@@ -90,10 +90,10 @@ func NewLuxdClient(baseURL string) *LuxdClient {
 
 // rpcRequest matches the luxd JSON-RPC wire envelope.
 type rpcRequest struct {
-	JSONRPC string                 `json:"jsonrpc"`
-	ID      int                    `json:"id"`
-	Method  string                 `json:"method"`
-	Params  map[string]interface{} `json:"params"`
+	JSONRPC string         `json:"jsonrpc"`
+	ID      int            `json:"id"`
+	Method  string         `json:"method"`
+	Params  map[string]any `json:"params"`
 }
 
 type rpcError struct {
@@ -126,7 +126,7 @@ func (l *LuxdClient) GetCurrentValidators(ctx context.Context) ([]string, error)
 		JSONRPC: "2.0",
 		ID:      1,
 		Method:  "platform.getCurrentValidators",
-		Params:  map[string]interface{}{},
+		Params:  map[string]any{},
 	}
 	encoded, err := json.Marshal(reqBody)
 	if err != nil {
